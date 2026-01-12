@@ -1,18 +1,19 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  // Colores Principales (Brand)
-  static const Color primary = Color(0xFF2E7D32); // Verde Bosque (Serio pero fresco)
-  static const Color secondary = Color(0xFF81C784); // Verde suave (Accentos)
+// --- Kadu Dark Theme ---
 
-  // Colores Semánticos (Estado de la comida)
-  static const Color fresh = Color(0xFF4CAF50);    // Comida en buen estado
-  static const Color warning = Color(0xFFFFC107);  // Por vencer (Amarillo ámbar)
-  static const Color expired = Color(0xFFE53935);  // Vencido (Rojo alerta)
+  // Fondos
+  static const Color background = Color(0xFF0F1613); // Fondo casi negro verdoso
+  static const Color cardSurface = Color(0xFF192520); // Tarjetas un poco más claras
 
-  // Fondos y Textos
-  static const Color background = Color(0xFFF5F7FA); // Gris muy clarito (Más moderno que blanco puro)
-  static const Color surface = Colors.white;         // Tarjetas
-  static const Color textPrimary = Color(0xFF1A1A1A); // Casi negro (Mejor lectura)
-  static const Color textSecondary = Color(0xFF757575); // Gris medio
+  // Brand / Acentos
+  static const Color primary = Color(0xFF27E374);    // El verde neón del botón Scan
+  static const Color secondary = Color(0xFF3D6A54);  // Verde apagado para bordes/detalles
+
+  // Semánticos (Alertas)
+  static const Color alertRed = Color(0xFFFF4D4D);   // "Today" tag
+  static const Color alertOrange = Color(0xFFFF8A35); // "Tomorrow" tag
+  static const Color textWhite = Color(0xFFFFFFFF);
+  static const Color textGrey = Color(0xFF9BA4A0);
 }

@@ -5,8 +5,6 @@ import 'features/home/presentation/home_screen.dart';
 
 void main() {
   runApp(
-    // ProviderScope es OBLIGATORIO para usar Riverpod.
-    // Es el contenedor que guarda el estado de toda la app.
     const ProviderScope(
       child: KaduApp(),
     ),
@@ -20,12 +18,12 @@ class KaduApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Kadu',
-      debugShowCheckedModeBanner: false, // Quitamos la etiqueta "Debug"
+      debugShowCheckedModeBanner: false,
 
-      // Aquí conectamos nuestro diseño profesional
-      theme: AppTheme.lightTheme,
+      // CORRECCIÓN AQUÍ:
+      // Cambiamos .lightTheme por .darkTheme para que coincida con tu nuevo archivo de estilos
+      theme: AppTheme.darkTheme,
 
-      // AHORA SÍ: Usamos la pantalla principal con navegación
       home: const HomeScreen(),
     );
   }
