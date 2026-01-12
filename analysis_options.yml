@@ -1,0 +1,13 @@
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    # Reglas de Estilo y Buenas Prácticas
+    always_declare_return_types: true          # Obliga a decir qué devuelve una función
+    prefer_final_locals: true                  # Si una variable no cambia, usa 'final'
+    prefer_const_constructors: true            # Usa 'const' para optimizar memoria
+    annotate_overrides: true                   # Obliga a usar @override
+    avoid_print: true                          # ¡PROHIBIDO usar print() en producción!
+    prefer_single_quotes: true                 # Usar comillas simples 'texto'
+    sized_box_for_whitespace: true             # Usar SizedBox en vez de Container vacíos (Más rápido)
+    use_build_context_synchronously: true      # Evita errores al cerrar pantallas
