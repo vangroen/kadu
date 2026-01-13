@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "673318846822",
+    "project_id": "kadu-db",
+    "storage_bucket": "kadu-db.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:673318846822:android:7621eac850d6e53195c8a7",
+        "android_client_info": {
+          "package_name": "com.example.kadu"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAgZu0NTVelp6oBAeOd4JxS1tbAf9rPW9A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kadu/core/theme/app_colors.dart';
-import '../../scan/presentation/scan_screen.dart'; // Importa tu pantalla de Scan
+import '../../../core/theme/app_colors.dart';
+import '../../scan/presentation/scan_screen.dart';
+import '../../inventory/data/pantry_repository.dart';
+import '../../inventory/domain/entities/product_entity.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -13,22 +15,85 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   int _currentIndex = 0;
 
-  // Las pantallas de tu diseño
-  final List<Widget> _screens = [
-    const Center(child: Text('🏠 Home Dashboard', style: TextStyle(color: Colors.white))), // Aquí haremos el dashboard luego
-    const Center(child: Text('📦 Pantry', style: TextStyle(color: Colors.white))),
-    const SizedBox(), // Espacio vacío para el botón de Scan
-    const Center(child: Text('📝 Recipes', style: TextStyle(color: Colors.white))),
-    const Center(child: Text('⚙️ Settings', style: TextStyle(color: Colors.white))),
-  ];
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      // El contenido principal
-      body: _currentIndex == 2 ? const ScanScreen() : _screens[_currentIndex],
+    // Definimos las pantallas aquí para poder usar 'ref' y 'context'
+    final List<Widget> screens = [
+      // --- PANTALLA 0: DASHBOARD (Con botón de prueba) ---
+      Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('🏠 Home Dashboard', style: TextStyle(color: Colors.white, fontSize: 20)),
+            const SizedBox(height: 20),
 
-      // EL BOTÓN GIGANTE DE SCAN (FLOTANTE)
+            // BOTÓN DE PRUEBA FIREBASE
+            ElevatedButton.icon(
+              icon: const Icon(Icons.cloud_upload),
+              label: const Text("PROBAR FIREBASE"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ),
+              onPressed: () async {
+                // 1. Crear producto de prueba
+                final newProduct = ProductEntity(
+                  id: DateTime.now().millisecondsSinceEpoch.toString(), // ID único temporal
+                  name: "Leche Gloria Test",
+                  expirationDate: DateTime.now().add(const Duration(days: 7)), // Vence en 1 semana
+                  addedDate: DateTime.now(),
+                  category: "Lácteos",
+                  quantity: 1,
+                );
+
+                // 2. Guardar en la nube usando el Repositorio
+                try {
+                  await ref.read(pantryRepositoryProvider).addProduct(newProduct);
+
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('✅ ¡Enviado a Firebase! Revisa la consola web.'),
+                        backgroundColor: AppColors.primary,
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('❌ Error: $e'),
+                        backgroundColor: AppColors.alertRed,
+                      ),
+                    );
+                  }
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+
+      // --- PANTALLA 1: PANTRY ---
+      const Center(child: Text('📦 Pantry', style: TextStyle(color: Colors.white))),
+
+      // --- PANTALLA 2: SCAN (Se maneja abajo, esto es placeholder) ---
+      const SizedBox(),
+
+      // --- PANTALLA 3: RECIPES ---
+      const Center(child: Text('📝 Recipes', style: TextStyle(color: Colors.white))),
+
+      // --- PANTALLA 4: SETTINGS ---
+      const Center(child: Text('⚙️ Settings', style: TextStyle(color: Colors.white))),
+    ];
+
+    return Scaffold(
+      // Lógica: Si el índice es 2, mostramos el Scanner a pantalla completa.
+      // Si no, mostramos la pantalla correspondiente de la lista.
+      body: _currentIndex == 2 ? const ScanScreen() : screens[_currentIndex],
+
+      // --- BOTÓN FLOTANTE GIGANTE (SCAN) ---
       floatingActionButton: Container(
         height: 75,
         width: 75,
@@ -48,7 +113,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           elevation: 0,
           onPressed: () {
             setState(() {
-              _currentIndex = 2; // Índice 2 es la cámara
+              _currentIndex = 2; // Cambia a la pantalla de cámara
             });
           },
           child: const Column(
@@ -62,23 +127,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
 
-      // LA BARRA INFERIOR (Dock)
+      // --- BARRA INFERIOR ---
       bottomNavigationBar: BottomAppBar(
         color: AppColors.cardSurface,
-        shape: const CircularNotchedRectangle(), // El recorte curvado
+        shape: const CircularNotchedRectangle(),
         notchMargin: 10,
         height: 70,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // Lado Izquierdo
             _buildNavItem(Icons.grid_view_rounded, "Home", 0),
             _buildNavItem(Icons.inventory_2_outlined, "Pantry", 1),
-
-            // Espacio central para el botón flotante
-            const SizedBox(width: 40),
-
-            // Lado Derecho
+            const SizedBox(width: 40), // Espacio para el botón central
             _buildNavItem(Icons.receipt_long_rounded, "Recipes", 3),
             _buildNavItem(Icons.settings_outlined, "Settings", 4),
           ],
@@ -87,7 +147,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  // Widget auxiliar para crear los botones pequeños
   Widget _buildNavItem(IconData icon, String label, int index) {
     final isSelected = _currentIndex == index;
     return InkWell(

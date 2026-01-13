@@ -22,6 +22,8 @@ dependencies:
   # --- Gestión de Estado (Riverpod) ---
   flutter_riverpod: ^2.5.1
   riverpod_annotation: ^2.3.5
+  firebase_core: ^4.3.0
+  cloud_firestore: ^6.1.1
 
 dev_dependencies:
   flutter_test:
