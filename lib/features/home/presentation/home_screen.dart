@@ -4,6 +4,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../scan/presentation/scan_screen.dart';
 import '../../inventory/data/pantry_repository.dart';
 import '../../inventory/domain/entities/product_entity.dart';
+import '../../inventory/presentation/screens/pantry_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -76,7 +77,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
 
       // --- PANTALLA 1: PANTRY ---
-      const Center(child: Text('📦 Pantry', style: TextStyle(color: Colors.white))),
+      const PantryScreen(),
 
       // --- PANTALLA 2: SCAN (Se maneja abajo, esto es placeholder) ---
       const SizedBox(),
