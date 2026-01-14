@@ -12,7 +12,20 @@
           "package_name": "com.example.kadu"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "673318846822-avgjegt0gbm7v91uo6qtm7hl3jf6qcdb.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.kadu",
+            "certificate_hash": "b6a2e22455d1eeadce136431b236f44fa62e71a4"
+          }
+        },
+        {
+          "client_id": "673318846822-1ukiinjt7sbsp8lranh0s0hgnbbsmp7p.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyAgZu0NTVelp6oBAeOd4JxS1tbAf9rPW9A"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "673318846822-1ukiinjt7sbsp8lranh0s0hgnbbsmp7p.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "673318846822-4erqq48b13s7decl2c84k97q5rp4j3ra.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.kadu"
+              }
+            }
+          ]
         }
       }
     }
