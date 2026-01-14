@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../scan/presentation/scan_screen.dart';
 import '../../inventory/data/pantry_repository.dart';
 import '../../inventory/domain/entities/product_entity.dart';
 import '../../inventory/presentation/screens/pantry_screen.dart';
+import '../../auth/data/auth_repository.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -18,83 +20,128 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Definimos las pantallas aquí para poder usar 'ref' y 'context'
-    final List<Widget> screens = [
-      // --- PANTALLA 0: DASHBOARD (Con botón de prueba) ---
-      Center(
+    // Obtenemos los datos del usuario actual (que viene de Google)
+    final user = FirebaseAuth.instance.currentUser;
+    final String userName = user?.displayName ?? "Usuario";
+    final String? userPhoto = user?.photoURL;
+
+    // --- PANTALLA 0: DASHBOARD PERSONALIZADO ---
+    final dashboardScreen = Center(
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text('🏠 Home Dashboard', style: TextStyle(color: Colors.white, fontSize: 20)),
-            const SizedBox(height: 20),
+            // Avatar del Usuario
+            CircleAvatar(
+              radius: 40,
+              backgroundColor: AppColors.primary,
+              backgroundImage: userPhoto != null ? NetworkImage(userPhoto) : null,
+              child: userPhoto == null
+                  ? const Icon(Icons.person, size: 40, color: Colors.black)
+                  : null,
+            ),
+            const SizedBox(height: 16),
 
-            // BOTÓN DE PRUEBA FIREBASE
+            Text(
+                'Hola, $userName 👋',
+                style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)
+            ),
+            const Text(
+              'Tu alacena está segura en la nube',
+              style: TextStyle(color: Colors.grey),
+            ),
+
+            const SizedBox(height: 40),
+
+            // Tarjeta de Resumen (Ejemplo)
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppColors.cardSurface,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white10),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  Column(
+                    children: [
+                      Text("0", style: TextStyle(color: AppColors.primary, fontSize: 24, fontWeight: FontWeight.bold)),
+                      Text("Productos", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                    ],
+                  ),
+                  Column(
+                    children: [
+                      Text("0", style: TextStyle(color: AppColors.alertRed, fontSize: 24, fontWeight: FontWeight.bold)),
+                      Text("Vencidos", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 40),
+
+            // BOTÓN PRUEBA FIREBASE (Privado)
             ElevatedButton.icon(
               icon: const Icon(Icons.cloud_upload),
-              label: const Text("PROBAR FIREBASE"),
+              label: const Text("GUARDAR EN MI CUENTA"),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.black,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               ),
               onPressed: () async {
-                // 1. Crear producto de prueba
                 final newProduct = ProductEntity(
-                  id: DateTime.now().millisecondsSinceEpoch.toString(), // ID único temporal
-                  name: "Leche Gloria Test",
-                  expirationDate: DateTime.now().add(const Duration(days: 7)), // Vence en 1 semana
+                  id: DateTime.now().millisecondsSinceEpoch.toString(),
+                  name: "Producto de $userName",
+                  expirationDate: DateTime.now().add(const Duration(days: 15)),
                   addedDate: DateTime.now(),
-                  category: "Lácteos",
+                  category: "Personal",
                   quantity: 1,
                 );
 
-                // 2. Guardar en la nube usando el Repositorio
                 try {
                   await ref.read(pantryRepositoryProvider).addProduct(newProduct);
-
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('✅ ¡Enviado a Firebase! Revisa la consola web.'),
-                        backgroundColor: AppColors.primary,
-                      ),
+                      const SnackBar(content: Text('✅ Guardado en tu espacio privado')),
                     );
                   }
                 } catch (e) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('❌ Error: $e'),
-                        backgroundColor: AppColors.alertRed,
-                      ),
-                    );
-                  }
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
                 }
+              },
+            ),
+
+            const SizedBox(height: 20),
+
+            // BOTÓN CERRAR SESIÓN
+            TextButton.icon(
+              icon: const Icon(Icons.logout, color: AppColors.alertRed),
+              label: const Text("Cerrar Sesión", style: TextStyle(color: AppColors.alertRed)),
+              onPressed: () async {
+                await ref.read(authRepositoryProvider).signOut();
+                // El AuthGate en main.dart detectará el cambio y te llevará al Login solo
               },
             ),
           ],
         ),
       ),
+    );
 
-      // --- PANTALLA 1: PANTRY ---
+    final List<Widget> screens = [
+      dashboardScreen,
       const PantryScreen(),
-
-      // --- PANTALLA 2: SCAN (Se maneja abajo, esto es placeholder) ---
-      const SizedBox(),
-
-      // --- PANTALLA 3: RECIPES ---
+      const SizedBox(), // Placeholder Scan
       const Center(child: Text('📝 Recipes', style: TextStyle(color: Colors.white))),
-
-      // --- PANTALLA 4: SETTINGS ---
       const Center(child: Text('⚙️ Settings', style: TextStyle(color: Colors.white))),
     ];
 
     return Scaffold(
-      // Lógica: Si el índice es 2, mostramos el Scanner a pantalla completa.
-      // Si no, mostramos la pantalla correspondiente de la lista.
       body: _currentIndex == 2 ? const ScanScreen() : screens[_currentIndex],
 
-      // --- BOTÓN FLOTANTE GIGANTE (SCAN) ---
+      // BOTÓN FLOTANTE SCAN
       floatingActionButton: Container(
         height: 75,
         width: 75,
@@ -112,11 +159,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           backgroundColor: AppColors.primary,
           shape: const CircleBorder(),
           elevation: 0,
-          onPressed: () {
-            setState(() {
-              _currentIndex = 2; // Cambia a la pantalla de cámara
-            });
-          },
+          onPressed: () => setState(() => _currentIndex = 2),
           child: const Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -128,7 +171,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
 
-      // --- BARRA INFERIOR ---
+      // BARRA INFERIOR
       bottomNavigationBar: BottomAppBar(
         color: AppColors.cardSurface,
         shape: const CircularNotchedRectangle(),
@@ -139,7 +182,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           children: [
             _buildNavItem(Icons.grid_view_rounded, "Home", 0),
             _buildNavItem(Icons.inventory_2_outlined, "Pantry", 1),
-            const SizedBox(width: 40), // Espacio para el botón central
+            const SizedBox(width: 40),
             _buildNavItem(Icons.receipt_long_rounded, "Recipes", 3),
             _buildNavItem(Icons.settings_outlined, "Settings", 4),
           ],

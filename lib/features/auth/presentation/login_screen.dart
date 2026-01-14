@@ -1,86 +1,57 @@
-import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../data/auth_repository.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
-class LoginScreen extends ConsumerWidget {
-  const LoginScreen({super.key});
+final authRepositoryProvider = Provider((ref) => AuthRepository());
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 30),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Logo
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: AppColors.cardSurface,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.primary.withOpacity(0.2),
-                      blurRadius: 20,
-                      spreadRadius: 5,
-                    ),
-                  ],
-                ),
-                child: const Icon(Icons.lock_person_rounded, size: 60, color: AppColors.primary),
-              ),
+final authStateProvider = StreamProvider<User?>((ref) {
+  return ref.read(authRepositoryProvider).authStateChanges;
+});
 
-              const SizedBox(height: 30),
+class AuthRepository {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: []);
 
-              const Text(
-                "Bienvenido a Kadu",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.0,
-                ),
-              ),
+  Stream<User?> get authStateChanges => _auth.authStateChanges();
+  User? get currentUser => _auth.currentUser;
 
-              const SizedBox(height: 10),
+  // --- LOGIN ANÓNIMO (Nuevo) ---
+  Future<User?> signInAnonymously() async {
+    try {
+      final UserCredential userCredential = await _auth.signInAnonymously();
+      return userCredential.user;
+    } catch (e) {
+      print("Error en Login Anónimo: $e");
+      rethrow;
+    }
+  }
 
-              const Text(
-                "Tu asistente inteligente de alacena",
-                style: TextStyle(color: Colors.grey, fontSize: 14),
-              ),
+  // --- LOGIN CON GOOGLE (Lo dejamos por si acaso lo arreglas luego) ---
+  Future<User?> signInWithGoogle() async {
+    try {
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) return null;
 
-              const SizedBox(height: 60),
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
 
-              // BOTÓN DE GOOGLE
-              SizedBox(
-                width: double.infinity,
-                height: 55,
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.g_mobiledata, size: 35),
-                  label: const Text(
-                      "Continuar con Google",
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.black,
-                    elevation: 2,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  onPressed: () {
-                    ref.read(authRepositoryProvider).signInWithGoogle();
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+      final UserCredential userCredential = await _auth.signInWithCredential(credential);
+      return userCredential.user;
+    } catch (e) {
+      print("Error en Google Sign-In: $e");
+      rethrow;
+    }
+  }
+
+  Future<void> signOut() async {
+    try {
+      await _googleSignIn.signOut();
+    } catch (e) {
+      // Ignoramos error si no había sesión de Google
+    }
+    await _auth.signOut();
   }
 }
