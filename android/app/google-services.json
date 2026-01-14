@@ -14,11 +14,11 @@
       },
       "oauth_client": [
         {
-          "client_id": "673318846822-avgjegt0gbm7v91uo6qtm7hl3jf6qcdb.apps.googleusercontent.com",
+          "client_id": "673318846822-lp27kauvdc1c3f35vaej23gtfhto9as8.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
             "package_name": "com.example.kadu",
-            "certificate_hash": "b6a2e22455d1eeadce136431b236f44fa62e71a4"
+            "certificate_hash": "7411d21f969bafdfbded6b20827790c0ad2d4004"
           }
         },
         {
