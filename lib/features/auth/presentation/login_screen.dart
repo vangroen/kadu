@@ -1,57 +1,69 @@
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+import '../data/auth_repository.dart';
 
-final authRepositoryProvider = Provider((ref) => AuthRepository());
+class LoginScreen extends ConsumerWidget {
+  const LoginScreen({super.key});
 
-final authStateProvider = StreamProvider<User?>((ref) {
-  return ref.read(authRepositoryProvider).authStateChanges;
-});
-
-class AuthRepository {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: []);
-
-  Stream<User?> get authStateChanges => _auth.authStateChanges();
-  User? get currentUser => _auth.currentUser;
-
-  // --- LOGIN ANÓNIMO (Nuevo) ---
-  Future<User?> signInAnonymously() async {
-    try {
-      final UserCredential userCredential = await _auth.signInAnonymously();
-      return userCredential.user;
-    } catch (e) {
-      print("Error en Login Anónimo: $e");
-      rethrow;
-    }
-  }
-
-  // --- LOGIN CON GOOGLE (Lo dejamos por si acaso lo arreglas luego) ---
-  Future<User?> signInWithGoogle() async {
-    try {
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) return null;
-
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      final UserCredential userCredential = await _auth.signInWithCredential(credential);
-      return userCredential.user;
-    } catch (e) {
-      print("Error en Google Sign-In: $e");
-      rethrow;
-    }
-  }
-
-  Future<void> signOut() async {
-    try {
-      await _googleSignIn.signOut();
-    } catch (e) {
-      // Ignoramos error si no había sesión de Google
-    }
-    await _auth.signOut();
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text(
+                'Kadu',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 48),
+              ElevatedButton.icon(
+                onPressed: () async {
+                  try {
+                    await ref.read(authRepositoryProvider).signInWithGoogle();
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error: $e')),
+                      );
+                    }
+                  }
+                },
+                icon: const Icon(Icons.login),
+                label: const Text('Iniciar sesión con Google'),
+                style: ElevatedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 50),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () async {
+                  try {
+                    await ref.read(authRepositoryProvider).signInAnonymously();
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error: $e')),
+                      );
+                    }
+                  }
+                },
+                child: const Text(
+                  'Continuar como invitado',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
