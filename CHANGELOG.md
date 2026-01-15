@@ -5,6 +5,17 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.0.5] - 2026-01-15
+### Inteligencia Visual y UI
+- **Semáforo de Vencimiento**: Indicadores visuales en cada producto (Rojo=Vencido, Naranja=<=15 días, Verde=>15 días).
+- **Ordenamiento Inteligente**: La lista ahora se ordena automáticamente por fecha de vencimiento (lo más urgente primero).
+- **Mejoras UI**:
+    - Unificación del componente de foto en edición (corrección de duplicados).
+    - Formato de fecha detallado (dd/MM/yy).
+
+### Commits
+- `2197a42` feat: mejora semaforo de productos
+
 ## [1.0.4] - 2026-01-15
 ### Rendimiento, OCR y UX
 - **Corrección de Pantalla Negra**: Se eliminó el error donde la cámara se quedaba en negro al navegar rápidamente entre pantallas.
