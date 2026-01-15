@@ -60,4 +60,14 @@ class PantryRepository {
       }).toList();
     });
   }
+  // --- FUNCION PARA BORRAR ---
+  Future<void> deleteProduct(String productId) async {
+    try {
+      await _userPantry.doc(productId).delete();
+      print("🗑️ Producto eliminado: $productId");
+    } catch (e) {
+      print("❌ Error eliminando producto: $e");
+      rethrow;
+    }
+  }
 }

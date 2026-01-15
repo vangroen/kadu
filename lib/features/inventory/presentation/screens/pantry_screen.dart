@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../data/pantry_repository.dart';
 import '../providers/pantry_provider.dart';
 
 class PantryScreen extends ConsumerWidget {
@@ -40,38 +41,71 @@ class PantryScreen extends ConsumerWidget {
             itemBuilder: (context, index) {
               final product = products[index];
 
-              // Tarjeta del Producto
-              return Card(
-                color: AppColors.cardSurface,
-                margin: const EdgeInsets.only(bottom: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                child: ListTile(
-                  leading: Container(
-                    padding: product.imageUrl == null ? const EdgeInsets.all(10) : EdgeInsets.zero,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.1),
-                      shape: BoxShape.circle,
+              // Tarjeta del Producto (Deslizar para borrar)
+              return Dismissible(
+                key: Key(product.id ?? UniqueKey().toString()), // Aseguramos key única
+                direction: DismissDirection.horizontal,
+                background: Container(
+                  alignment: Alignment.centerLeft,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.delete, color: Colors.white),
+                ),
+                secondaryBackground: Container(
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.red,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.delete, color: Colors.white),
+                ),
+                onDismissed: (direction) {
+                  // 1. Borrar visualmente y en BD
+                  ref.read(pantryRepositoryProvider).deleteProduct(product.id);
+
+                  // 2. Feedback
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('🗑️ ${product.name} eliminado')),
+                  );
+                },
+                child: Card(
+                  color: AppColors.cardSurface,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  child: ListTile(
+                    leading: Container(
+                      padding: product.imageUrl == null ? const EdgeInsets.all(10) : EdgeInsets.zero,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: GestureDetector(
+                        onTap: () {
+                          if (product.imageUrl != null && product.imageUrl!.isNotEmpty) {
+                            _showImagePreview(context, product.imageUrl!);
+                          }
+                        },
+                        child: _buildProductImage(product.imageUrl),
+                      ),
                     ),
-                    child: GestureDetector(
-                      onTap: () {
-                        if (product.imageUrl != null && product.imageUrl!.isNotEmpty) {
-                          _showImagePreview(context, product.imageUrl!);
-                        }
-                      },
-                      child: _buildProductImage(product.imageUrl),
+                    title: Text(
+                      product.name,
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                     ),
-                  ),
-                  title: Text(
-                    product.name,
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                  ),
-                  subtitle: Text(
-                    "Vence: ${DateFormat('dd/MM/yyyy').format(product.expirationDate)}",
-                    style: const TextStyle(color: Colors.grey),
-                  ),
-                  trailing: Text(
-                    "x${product.quantity}",
-                    style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 16),
+                    subtitle: Text(
+                      "Vence: ${DateFormat('dd/MM/yyyy').format(product.expirationDate)}",
+                      style: const TextStyle(color: Colors.grey),
+                    ),
+                    trailing: Text(
+                      "x${product.quantity}",
+                      style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
                   ),
                 ),
               );
