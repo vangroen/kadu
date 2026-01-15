@@ -2,19 +2,22 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../auth/data/auth_repository.dart';
 import '../domain/entities/product_entity.dart';
 
 // --- PROVIDER ---
 // Este Provider ahora inyecta dinámicamente el UID del usuario en el repositorio.
 final pantryRepositoryProvider = Provider<PantryRepository>((ref) {
-  // TODO: Cuando conectes el AuthRepository real, usa esto:
-  // final user = ref.watch(authProvider).currentUser;
-  // if (user == null) throw Exception("Debes iniciar sesión");
-  // return PantryRepository(uid: user.uid);
+  final authRepo = ref.watch(authRepositoryProvider);
+  final user = authRepo.currentUser;
 
-  // TEMPORAL: Usamos un ID fijo para desarrollo local.
-  // Esto aísla tus pruebas de las de otros desarrolladores/usuarios.
-  return PantryRepository(uid: 'test_user_dev_1');
+  // Si no hay usuario, lanzamos excepción.
+  // (La UI debería prevenir esto gracias al AuthGate, pero es buena práctica defensiva)
+  if (user == null) {
+      throw Exception("Intento de acceso a Alacena sin usuario autenticado.");
+  }
+
+  return PantryRepository(uid: user.uid);
 });
 
 // --- REPOSITORIO ---
