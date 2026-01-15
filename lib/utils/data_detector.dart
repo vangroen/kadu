@@ -47,17 +47,18 @@ class DateDetector {
         }
       }
 
-      // 4. ESTRATEGIA B: Fechas con Texto (12 ENE 2025)
-      // Meses en español e inglés
+      // 4. ESTRATEGIA B: Fechas con Texto (12 ENE 25 o 12 ENE 2025)
+      // Actualizado para soportar "26 ABR 26" donde el año son 2 dígitos y hay espacios
       final textDateRegex = RegExp(
-        r'\b(\d{1,2})[\s\.\-\/]+(ENE|FEB|MAR|ABR|MAY|JUN|JUL|AGO|SEP|OCT|NOV|DIC|JAN|APR|AUG|DEC)[A-Z]*[\s\.\-\/]+(\d{2,4})\b'
+        r'\b(\d{1,2})[\s\.\-\/]+(ENE|FEB|MAR|ABR|MAY|JUN|JUL|AGO|SEP|OCT|NOV|DIC|JAN|APR|AUG|DEC)[A-Z]*[\s\.\-\/]+(\d{2,4})\b',
+        caseSensitive: false,
       );
       final matchText = textDateRegex.firstMatch(cleanLine);
 
       if (matchText != null) {
         try {
           int day = int.parse(matchText.group(1)!);
-          String monthStr = matchText.group(2)!;
+          String monthStr = matchText.group(2)!.toUpperCase();
           int year = int.parse(matchText.group(3)!);
           int month = _monthStringToInt(monthStr);
 

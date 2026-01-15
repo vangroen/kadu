@@ -36,7 +36,11 @@ Sincronización en tiempo real: Lo que escaneas en tu celular aparece en el de t
 
 🔍 Vista Previa de Productos:
 
-Ahora puedes tocar la miniatura de cualquier producto en tu alacena para ver la foto en pantalla completa, con capacidad de Zoom para ver los detalles.
+**Características Clave:**
+
+🚀 **Ultrarrápido**: Escaneo de códigos de barras y fotos instantáneas gracias a la cámara integrada optimizada.
+🥫 **Gestión de Alacena:** Agrega productos manualmente o escanéalos. Guarda nombre, cantidad, fotos expiración y categoría.
+🧠 **OCR Inteligente:** Detecta automáticamente fechas de vencimiento complejas (Ej: "26 ABR 25").
 
 🔔 Alertas de Caducidad (Próximamente):
 

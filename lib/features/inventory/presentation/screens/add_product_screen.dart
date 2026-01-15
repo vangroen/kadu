@@ -63,25 +63,26 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
 
   // Lógica 1: Foto del Producto (Solo imagen visual)
   Future<void> _takeProductPhoto() async {
+    // OPTIMIZACIÓN: Usar SimpleCameraScreen en lugar de ImagePicker
+    // Esto evita la pantalla negra de 2s al abrir la app de cámara externa
     final XFile? photo = await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => const SimpleCameraScreen(
           overlayText: "Foto del Producto",
-          isDateScan: false,
+          isDateScan: false, // Modo foto normal
         ),
       ),
     );
 
-    if (photo == null) return;
-
-    setState(() {
-      _productImage = File(photo.path);
-    });
-  }
-
-  // Lógica 2: Escaneo de Fecha (Con Zoom y Validación)
-  Future<void> _scanExpirationDate() async {
+    if (photo != null) {
+      if (mounted) {
+        setState(() {
+          _productImage = File(photo.path);
+        });
+      }
+    }
+  }Future<void> _scanExpirationDate() async {
     final XFile? photo = await Navigator.push(
       context,
       MaterialPageRoute(
@@ -489,6 +490,9 @@ class _SimpleCameraScreenState extends State<SimpleCameraScreen> {
   }
 
   Future<void> _init() async {
+    // BLINDAJE: Pausa de seguridad (Fix pantalla negra)
+    await Future.delayed(const Duration(milliseconds: 300));
+
     // OPTIMIZATION: Cache cameras to avoid calling the platform channel every time
     if (_cachedCameras.isEmpty) {
       _cachedCameras = await availableCameras();
@@ -498,7 +502,7 @@ class _SimpleCameraScreenState extends State<SimpleCameraScreen> {
     // OPTIMIZATION: Reduced resolution from max to high for faster startup and capture
     _cameraController = CameraController(
       _cachedCameras[0], 
-      ResolutionPreset.high, 
+      ResolutionPreset.medium, // OPTIMIZATION: Medium is faster and enough for OCR/Photos
       enableAudio: false, 
       imageFormatGroup: ImageFormatGroup.yuv420
     );
@@ -547,7 +551,14 @@ class _SimpleCameraScreenState extends State<SimpleCameraScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_isInit) return const Scaffold(backgroundColor: Colors.black);
+    if (!_isInit) {
+      return const Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
+      );
+    }
     
     return Scaffold(
       backgroundColor: Colors.black,

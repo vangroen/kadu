@@ -38,6 +38,9 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _initCamera() async {
+    // BLINDAJE: Pequeña pausa para asegurar que el OS liberó la cámara anterior
+    await Future.delayed(const Duration(milliseconds: 300));
+
     var status = await Permission.camera.request();
     if (status.isDenied) return;
 
@@ -46,7 +49,7 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
 
     _controller = CameraController(
       cameras[0],
-      ResolutionPreset.high,
+      ResolutionPreset.medium, // OPTIMIZATION: Medium is faster/enough for barcodes
       enableAudio: false,
       imageFormatGroup: ImageFormatGroup.yuv420,
     );
