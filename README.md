@@ -20,11 +20,17 @@ Paso 1: Escanea el Código de Barras para identificar el producto (nombre, marca
 
 Paso 2: Escanea la Fecha de Vencimiento usando OCR (Reconocimiento Óptico de Caracteres) avanzado que detecta formatos complejos (e.g., "30 SEP 25", "VTO 12/12/2026").
 
-☁️ Almacenamiento en la Nube Privada:
+☁️ Almacenamiento en la Nube Privada y Optimizado:
 
 Cada usuario tiene su propia base de datos segura.
 
-Sincronización en tiempo real: Lo que escaneas en tu celular aparece en el de tu familia (próximamente con función de compartir).
+Sincronización en tiempo real: Lo que escaneas en tu celular aparece en el de tu familia.
+
+**[NUEVO] Almacenamiento de Fotos "Lightweight":** Implementamos un sistema de compresión inteligente que guarda las fotos de tus productos directamente en la base de datos (Base64), eliminando la dependencia de configuraciones complejas de Storage y asegurando que la app siga siendo rápida y gratuita de operar.
+
+🔍 Vista Previa de Productos:
+
+Ahora puedes tocar la miniatura de cualquier producto en tu alacena para ver la foto en pantalla completa, con capacidad de Zoom para ver los detalles.
 
 🔔 Alertas de Caducidad (Próximamente):
 
@@ -46,17 +52,12 @@ Backend as a Service (BaaS): Firebase
 
 Auth: Autenticación (Google Sign-In, Anónimo).
 
-Firestore: Base de datos NoSQL en tiempo real.
+Firestore: Base de datos NoSQL en tiempo real para datos e imágenes (Base64).
 
-Inteligencia Artificial (On-Device):
-
-google_mlkit_text_recognition: Para leer fechas (OCR).
-
-google_mlkit_barcode_scanning: Para leer códigos EAN/UPC.
-
-APIs Externas:
-
-OpenFoodFacts API: Para obtener nombres de productos a partir de códigos de barras.
+Librerías Clave:
+- google_mlkit_text_recognition: Para leer fechas (OCR).
+- google_mlkit_barcode_scanning: Para leer códigos EAN/UPC.
+- flutter_image_compress: Para optimización agresiva de imágenes.
 
 Arquitectura: Clean Architecture + Feature-First (Separación clara de Capas: Presentación, Dominio, Datos).
 
@@ -72,9 +73,9 @@ lib/
 │   │   └── presentation/  # Pantallas de Login
 │   ├── home/              # Dashboard principal y Navegación
 │   ├── inventory/         # Gestión de la Alacena (CRUD)
-│   │   ├── data/          # Repositorio de Firestore
+│   │   ├── data/          # Repositorio de Firestore (lógica Base64)
 │   │   ├── domain/        # Entidades (ProductEntity)
-│   │   └── presentation/  # Pantallas de lista de productos
+│   │   └── presentation/  # Pantallas de lista y detalle (con Preview)
 │   └── scan/              # Módulo de Cámara e IA
 │       ├── data/          # Servicios de OCR y API de Productos
 │       └── presentation/  # Pantalla de Escaneo (Máquina de Estados)
@@ -119,6 +120,9 @@ flutter run
 
 🔮 Próximos Pasos (Roadmap)
 
+[x] Guardado eficiente de imágenes (Base64 + Compresión).
+[x] Vista previa de imágenes con Zoom.
+
 [ ] Notificaciones Push: Avisar al usuario antes de que algo venza.
 
 [ ] Modo Offline Robusto: Que la app funcione perfectamente en el sótano del supermercado y sincronice al volver.
@@ -126,5 +130,8 @@ flutter run
 [ ] Recetas Inteligentes: Sugerir qué cocinar con los ingredientes que están por vencer.
 
 [ ] Soporte iOS: Adaptar permisos y configuraciones para Apple.
+
+## 📄 Historial de Cambios
+Para ver el detalle de todas las actualizaciones, consulta el [CHANGELOG.md](CHANGELOG.md).
 
 Hecho con ❤️ y 🥑 por el equipo de Kadu.
