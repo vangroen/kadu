@@ -44,14 +44,14 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
     super.dispose();
   }
 
-  // Lógica 1: Foto del Producto (Para sacar nombre)
+  // Lógica 1: Foto del Producto (Solo imagen visual)
   Future<void> _takeProductPhoto() async {
     final XFile? photo = await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => const SimpleCameraScreen(
-          overlayText: "Foto del Frente",
-          isDateScan: false, // Sin zoom extra
+          overlayText: "Foto del Producto",
+          isDateScan: false,
         ),
       ),
     );
@@ -60,36 +60,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
 
     setState(() {
       _productImage = File(photo.path);
-      _isAnalyzing = true;
     });
-
-    try {
-      final inputImage = InputImage.fromFilePath(photo.path);
-      final recognizedText = await _textRecognizer.processImage(inputImage);
-
-      // Heurística simple: La línea más larga suele ser el nombre
-      String bestCandidate = "";
-      for (TextBlock block in recognizedText.blocks) {
-        for (TextLine line in block.lines) {
-          if (line.text.length > bestCandidate.length) {
-            bestCandidate = line.text;
-          }
-        }
-      }
-
-      if (bestCandidate.isNotEmpty && _nameCtrl.text.isEmpty) {
-        _nameCtrl.text = bestCandidate;
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-             SnackBar(content: Text("Nombre detectado: $bestCandidate")),
-          );
-        }
-      }
-    } catch (e) {
-      debugPrint("Error OCR Nombre: $e");
-    } finally {
-      setState(() => _isAnalyzing = false);
-    }
   }
 
   // Lógica 2: Escaneo de Fecha (Con Zoom y Validación)
@@ -155,30 +126,46 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
       return;
     }
 
-    final newProduct = ProductEntity(
-      // Si el código viene vacío o nulo, generamos un ID temporal único
-      id: (widget.initialBarcode != null && widget.initialBarcode!.isNotEmpty) 
-          ? widget.initialBarcode! 
-          : DateTime.now().millisecondsSinceEpoch.toString(),
-      // AQUI FALTABA: Asignar el barcode explicitamente
-      barcode: (widget.initialBarcode != null && widget.initialBarcode!.isNotEmpty) 
-          ? widget.initialBarcode 
-          : null,
-      name: _nameCtrl.text,
-      expirationDate: _selectedDate,
-      addedDate: DateTime.now(),
-      quantity: int.tryParse(_quantityCtrl.text) ?? 1,
-      category: 'Manual',
-    );
+    // MOSTRAR LOADING MIENTRAS GUARDA
+    setState(() => _isAnalyzing = true);
 
     try {
+      // CORRECCIÓN: Siempre generamos un ID único basado en fecha/hora
+      // para permitir múltiples productos con el mismo código de barras.
+      final String productId = DateTime.now().millisecondsSinceEpoch.toString();
+
+      // 1. Subir imagen si existe
+      String? imageUrl;
+      if (_productImage != null) {
+        imageUrl = await ref.read(pantryRepositoryProvider).uploadImage(_productImage!, productId);
+        if (imageUrl == null) {
+          throw Exception("Fallo la subida de la imagen. Verifica tu conexión o reglas de Firebase Storage.");
+        }
+      }
+
+      final newProduct = ProductEntity(
+        id: productId,
+        barcode: (widget.initialBarcode != null && widget.initialBarcode!.isNotEmpty) 
+            ? widget.initialBarcode 
+            : null,
+        name: _nameCtrl.text,
+        expirationDate: _selectedDate,
+        addedDate: DateTime.now(),
+        quantity: int.tryParse(_quantityCtrl.text) ?? 1,
+        category: 'Manual',
+        imageUrl: imageUrl, // Guardamos la URL
+      );
+
       await ref.read(pantryRepositoryProvider).addProduct(newProduct);
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("¡Producto Guardado!")));
         Navigator.popUntil(context, (route) => route.isFirst);
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+    } finally {
+      if (mounted) setState(() => _isAnalyzing = false);
     }
   }
 
@@ -226,10 +213,19 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                   ),
                 ),
               ),
-              if (_isAnalyzing) 
-                const Padding(
-                  padding: EdgeInsets.all(8.0),
-                  child: Center(child: Text("Analizando IA...", style: TextStyle(color: AppColors.primary))),
+              // LOADING OVERLAY
+              if (_isAnalyzing)
+                Container(
+                  height: 200,
+                  alignment: Alignment.center,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: const [
+                      CircularProgressIndicator(color: AppColors.primary),
+                      SizedBox(height: 16),
+                      Text("Analizando imagen...", style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
                 ),
 
               const SizedBox(height: 30),
@@ -364,7 +360,7 @@ class DateDetector {
       }
 
       // Intentar texto (ENE, FEB...)
-      final textDateRegex = RegExp(r'\b(\d{1,2})[\s\.\-\/]+(ENE|FEB|MAR|ABR|MAY|JUN|JUL|AGO|SEP|OCT|NOV|DIC|JAN|APR|AUG|DEC)[A-Z]*[\s\.\-\/]+(\d{2,4})\b');
+      final textDateRegex = RegExp(r'\b(\d{1,2})[\s\.\-\/]*(ENE|FEB|MAR|ABR|MAY|JUN|JUL|AGO|SEP|OCT|NOV|DIC|JAN|APR|AUG|DEC)[A-Z]*[\s\.\-\/]*(\d{2,4})\b');
       final matchText = textDateRegex.firstMatch(cleanLine);
       
       if (matchText != null) {

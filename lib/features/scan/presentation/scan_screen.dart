@@ -149,9 +149,12 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
 
     try {
       await _stopStreamSafely();
-      await Future.delayed(const Duration(milliseconds: 150));
+      // await Future.delayed(const Duration(milliseconds: 150)); // REMOVED DELAY
 
+      // Lock focus to prevent autofocus hunting during capture
+      await _controller!.setFocusMode(FocusMode.locked);
       final XFile file = await _controller!.takePicture();
+      await _controller!.setFocusMode(FocusMode.auto); // Unlock focus after capture
       final inputImage = InputImage.fromFilePath(file.path);
 
       final barcodes = await _barcodeScanner.processImage(inputImage);
@@ -312,6 +315,20 @@ class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
             child: CameraPreview(_controller!),
           ),
           Container(color: Colors.black.withValues(alpha: 0.5)),
+          
+          if (_processingBarcode) ...[
+            Container(color: Colors.black54),
+            const Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(color: AppColors.primary),
+                  SizedBox(height: 20),
+                  Text("Procesando...", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600))
+                ],
+              ),
+            ),
+          ],
           SafeArea(
             child: Column(
               children: [

@@ -7,6 +7,7 @@ class ProductEntity {
   final DateTime expirationDate;
   final DateTime addedDate;
   final String? category;
+  final String? imageUrl; // URL de la imagen en Firebase Storage
   final int quantity;
 
   ProductEntity({
@@ -16,6 +17,7 @@ class ProductEntity {
     required this.expirationDate,
     required this.addedDate,
     this.category = 'General',
+    this.imageUrl, // Opcional
     this.quantity = 1,
   });
 
@@ -29,6 +31,7 @@ class ProductEntity {
       'expirationDate': Timestamp.fromDate(expirationDate),
       'addedDate': Timestamp.fromDate(addedDate),
       'category': category,
+      'imageUrl': imageUrl,
       'quantity': quantity,
     };
   }
@@ -43,6 +46,7 @@ class ProductEntity {
       expirationDate: (map['expirationDate'] as Timestamp).toDate(),
       addedDate: (map['addedDate'] as Timestamp).toDate(),
       category: map['category'] ?? 'General',
+      imageUrl: map['imageUrl'],
       quantity: map['quantity'] ?? 1,
     );
   }

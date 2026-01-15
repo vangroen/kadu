@@ -1,4 +1,6 @@
+import 'dart:io'; 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../domain/entities/product_entity.dart';
 
@@ -41,6 +43,27 @@ class PantryRepository {
     } catch (e) {
       print("❌ Error guardando producto: $e");
       rethrow;
+    }
+  }
+
+  // --- SUBIR IMAGEN ---
+  Future<String?> uploadImage(File imageFile, String productId) async {
+    try {
+      // Ruta: images/users/[uid]/[productId].jpg
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('images')
+          .child('users')
+          .child(uid)
+          .child('$productId.jpg');
+
+      await ref.putFile(imageFile);
+      final url = await ref.getDownloadURL();
+      print("✅ Imagen subida: $url");
+      return url;
+    } catch (e) {
+      print("❌ Error subiendo imagen: $e");
+      return null;
     }
   }
 

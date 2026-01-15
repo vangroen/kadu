@@ -46,12 +46,18 @@ class PantryScreen extends ConsumerWidget {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 child: ListTile(
                   leading: Container(
-                    padding: const EdgeInsets.all(10),
+                    padding: product.imageUrl == null ? const EdgeInsets.all(10) : EdgeInsets.zero,
                     decoration: BoxDecoration(
                       color: AppColors.primary.withOpacity(0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.fastfood, color: AppColors.primary),
+                    child: product.imageUrl != null 
+                      ? CircleAvatar(
+                          radius: 20,
+                          backgroundColor: Colors.transparent,
+                          backgroundImage: NetworkImage(product.imageUrl!),
+                        )
+                      : const Icon(Icons.fastfood, color: AppColors.primary),
                   ),
                   title: Text(
                     product.name,
