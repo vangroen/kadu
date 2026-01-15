@@ -1,52 +1,58 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../domain/entities/product_entity.dart';
 
-// Este provider ahora es inteligente: detecta quién es el usuario actual
+// --- PROVIDER ---
+// Este Provider ahora inyecta dinámicamente el UID del usuario en el repositorio.
 final pantryRepositoryProvider = Provider<PantryRepository>((ref) {
-  // Obtenemos el usuario logueado directamente de Firebase
-  final user = FirebaseAuth.instance.currentUser;
-  if (user == null) {
-    throw Exception("No hay usuario logueado para acceder a la alacena");
-  }
-  return PantryRepository(userId: user.uid);
+  // TODO: Cuando conectes el AuthRepository real, usa esto:
+  // final user = ref.watch(authProvider).currentUser;
+  // if (user == null) throw Exception("Debes iniciar sesión");
+  // return PantryRepository(uid: user.uid);
+
+  // TEMPORAL: Usamos un ID fijo para desarrollo local.
+  // Esto aísla tus pruebas de las de otros desarrolladores/usuarios.
+  return PantryRepository(uid: 'test_user_dev_1');
 });
 
+// --- REPOSITORIO ---
 class PantryRepository {
+  // Instancia de la base de datos
   final FirebaseFirestore _db = FirebaseFirestore.instance;
-  final String userId; // El ID del dueño de los datos
 
-  PantryRepository({required this.userId});
+  // El ID del usuario dueño de esta alacena
+  final String uid;
 
-  // Ahora la colección es privada: users -> [ID] -> pantry
-  CollectionReference get _userPantry =>
-      _db.collection('users').doc(userId).collection('pantry');
+  PantryRepository({required this.uid});
 
-  // --- GUARDAR (Privado) ---
+  // Getter para obtener la referencia a la colección privada:
+  // Ruta: users -> [ID Usuario] -> pantry
+  CollectionReference get _userPantry => _db
+      .collection('users')
+      .doc(uid)
+      .collection('pantry');
+
+  // --- FUNCION PARA GUARDAR ---
   Future<void> addProduct(ProductEntity product) async {
     try {
+      // Guardamos en la ruta privada usando el ID del producto
       await _userPantry.doc(product.id).set(product.toMap());
-      print("✅ Producto guardado en la alacena de $userId");
+      print("✅ Producto guardado en alacena de ($uid): ${product.name}");
     } catch (e) {
-      print("❌ Error guardando: $e");
+      print("❌ Error guardando producto: $e");
       rethrow;
     }
   }
 
-  // --- LEER (Privado) ---
+  // --- FUNCION PARA LEER ---
   Stream<List<ProductEntity>> getPantry() {
+    // Escuchamos solo la colección del usuario actual
     return _userPantry.orderBy('expirationDate').snapshots().map((snapshot) {
       return snapshot.docs.map((doc) {
-        // Aseguramos que el mapa sea Map<String, dynamic>
+        // Convertimos los datos de Firestore a nuestra entidad
         final data = doc.data() as Map<String, dynamic>;
         return ProductEntity.fromMap(data, doc.id);
       }).toList();
     });
-  }
-
-  // --- BORRAR (Privado) ---
-  Future<void> deleteProduct(String productId) async {
-    await _userPantry.doc(productId).delete();
   }
 }

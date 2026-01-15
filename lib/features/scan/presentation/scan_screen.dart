@@ -1,37 +1,34 @@
-import 'dart:io';
+import 'dart:async';
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:kadu/core/theme/app_colors.dart';
-import '../data/ocr_service.dart'; // Ruta corregida
-import '../data/product_search_service.dart'; // Ruta corregida
-import 'screen_overlay_painter.dart';
-import '../../inventory/data/pantry_repository.dart';
-import '../../inventory/domain/entities/product_entity.dart';
+import 'package:kadu/features/scan/presentation/screen_overlay_painter.dart';
+import '../../inventory/presentation/screens/add_product_screen.dart';
 
-enum ScanStep { barcode, date }
-
-class ScanScreen extends ConsumerStatefulWidget {
+class ScanScreen extends StatefulWidget {
   const ScanScreen({super.key});
 
   @override
-  ConsumerState<ScanScreen> createState() => _ScanScreenState();
+  State<ScanScreen> createState() => _ScanScreenState();
 }
 
-class _ScanScreenState extends ConsumerState<ScanScreen> with WidgetsBindingObserver {
+class _ScanScreenState extends State<ScanScreen> with WidgetsBindingObserver {
+  // --- Controladores de Cámara ---
   CameraController? _controller;
-  final BarcodeScanner _barcodeScanner = BarcodeScanner();
-
-  ScanStep _currentStep = ScanStep.barcode;
   bool _isCameraInitialized = false;
   bool _isFlashOn = false;
-  bool _isProcessing = false;
 
-  String? _tempBarcode;
-  String? _detectedProductName;
+  // --- Controladores de ML Kit ---
+  final BarcodeScanner _barcodeScanner = BarcodeScanner();
+  bool _isScanning = false;
+  bool _processingBarcode = false;
+
+  // --- CORTACIRCUITOS ---
+  bool _isAutoScanEnabled = true;
+  int _streamErrorCount = 0;
 
   @override
   void initState() {
@@ -51,331 +48,212 @@ class _ScanScreenState extends ConsumerState<ScanScreen> with WidgetsBindingObse
       cameras[0],
       ResolutionPreset.high,
       enableAudio: false,
-      imageFormatGroup: Platform.isAndroid
-          ? ImageFormatGroup.nv21
-          : ImageFormatGroup.bgra8888,
+      imageFormatGroup: ImageFormatGroup.yuv420,
     );
 
     try {
       await _controller!.initialize();
       await _controller!.setFocusMode(FocusMode.auto);
 
-      if (!mounted) return;
-      setState(() => _isCameraInitialized = true);
-
-      if (_currentStep == ScanStep.barcode) {
-        _startBarcodeStream();
+      if (mounted) {
+        setState(() => _isCameraInitialized = true);
+        if (_isAutoScanEnabled) {
+          _startImageStream();
+        }
       }
-
     } catch (e) {
       debugPrint("Error cámara: $e");
     }
   }
 
-  void _startBarcodeStream() {
-    if (_controller == null || !_controller!.value.isInitialized) return;
+  void _startImageStream() {
+    if (!_isAutoScanEnabled) return;
 
-    _controller!.startImageStream((CameraImage image) async {
-      if (_isProcessing) return;
-      if (_currentStep != ScanStep.barcode) return;
+    _controller?.startImageStream((CameraImage image) async {
+      if (_isScanning || _processingBarcode || !_isAutoScanEnabled) return;
 
-      _isProcessing = true;
+      _isScanning = true;
       try {
-        final inputImage = _inputImageFromCameraImage(image);
-        if (inputImage == null) return;
-
-        final barcodes = await _barcodeScanner.processImage(inputImage);
-
-        if (barcodes.isNotEmpty) {
-          final code = barcodes.first.rawValue;
-          if (code != null) {
-            await _controller!.stopImageStream();
-            _onBarcodeFound(code);
-          }
-        }
+        await _processCameraImage(image);
       } catch (e) {
-        debugPrint("Error en stream de barras: $e");
+        // Ignoramos errores transitorios
       } finally {
-        _isProcessing = false;
+        _isScanning = false;
       }
     });
   }
 
-  void _onBarcodeFound(String code) async {
-    HapticFeedback.mediumImpact();
-
-    setState(() {
-      _tempBarcode = code;
-      _currentStep = ScanStep.date;
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text("Código: $code. Buscando nombre... Ahora escanea la fecha."),
-        backgroundColor: AppColors.primary,
-        duration: const Duration(seconds: 3),
-      ),
-    );
-
-    if (code != "Manual") {
-      final name = await ref.read(productSearchServiceProvider).getProductName(code);
-      if (mounted && name != null) {
-        setState(() {
-          _detectedProductName = name;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("¡Producto identificado: $name!"), backgroundColor: Colors.green),
-        );
-      }
-    }
-  }
-
-  Future<void> _takePictureAndScanDate() async {
-    if (_controller == null || !_controller!.value.isInitialized || _isProcessing) return;
-
-    setState(() => _isProcessing = true);
-
+  Future<void> _processCameraImage(CameraImage image) async {
     try {
-      final XFile image = await _controller!.takePicture();
-      final ocrService = ref.read(ocrServiceProvider);
-      final DateTime? detectedDate = await ocrService.scanImageForDate(image.path);
+      final WriteBuffer allBytes = WriteBuffer();
+      for (final Plane plane in image.planes) {
+        allBytes.putUint8List(plane.bytes);
+      }
+      final bytes = allBytes.done().buffer.asUint8List();
 
-      if (!mounted) return;
+      final Size imageSize = Size(image.width.toDouble(), image.height.toDouble());
 
-      _showFinalProductDialog(detectedDate);
+      final sensorOrientation = _controller?.description.sensorOrientation ?? 0;
+      final imageRotation = InputImageRotationValue.fromRawValue(sensorOrientation)
+          ?? InputImageRotation.rotation0deg;
+
+      final inputImageFormat = InputImageFormatValue.fromRawValue(image.format.raw)
+          ?? InputImageFormat.yuv420;
+
+      final inputImageMetadata = InputImageMetadata(
+        size: imageSize,
+        rotation: imageRotation,
+        format: inputImageFormat,
+        bytesPerRow: image.planes[0].bytesPerRow,
+      );
+
+      final inputImage = InputImage.fromBytes(
+        bytes: bytes,
+        metadata: inputImageMetadata,
+      );
+
+      final barcodes = await _barcodeScanner.processImage(inputImage);
+      if (barcodes.isNotEmpty && barcodes.first.rawValue != null) {
+        _streamErrorCount = 0;
+        _onBarcodeDetected(barcodes.first.rawValue!);
+      }
 
     } catch (e) {
-      debugPrint("Error escaneando fecha: $e");
-    } finally {
-      if (mounted) setState(() => _isProcessing = false);
+      _streamErrorCount++;
+      // Si falla 5 veces, asumimos incompatibilidad y apagamos el auto-scan
+      if (_streamErrorCount > 5) {
+        debugPrint("⚠️ Stream incompatible. Cambiando a modo manual.");
+        _stopStreamSafely();
+        if (mounted) {
+          setState(() => _isAutoScanEnabled = false);
+        }
+      }
     }
   }
 
-  void _showFinalProductDialog(DateTime? date) {
-    final initialName = _detectedProductName ?? (_tempBarcode != null ? "Producto $_tempBarcode" : "");
-    final nameController = TextEditingController(text: initialName);
+  Future<void> _stopStreamSafely() async {
+    try {
+      if (_controller != null && _controller!.value.isStreamingImages) {
+        await _controller!.stopImageStream();
+      }
+    } catch (e) {
+      debugPrint("Stream ya estaba detenido.");
+    }
+  }
 
-    DateTime selectedDate = date ?? DateTime.now();
+  // --- LÓGICA MANUAL (Botón) ---
+  Future<void> _takePictureAndScan() async {
+    if (_controller == null || !_controller!.value.isInitialized || _processingBarcode) return;
 
+    setState(() => _processingBarcode = true);
+
+    try {
+      await _stopStreamSafely();
+      await Future.delayed(const Duration(milliseconds: 150));
+
+      final XFile file = await _controller!.takePicture();
+      final inputImage = InputImage.fromFilePath(file.path);
+
+      final barcodes = await _barcodeScanner.processImage(inputImage);
+
+      if (barcodes.isNotEmpty && barcodes.first.rawValue != null) {
+        _handleFoundCode(barcodes.first.rawValue!);
+      } else {
+        debugPrint("⚠️ Producto no encontrado. Yendo a alta inteligente.");
+
+        if (!mounted) return;
+
+        // REEMPLAZAR EL DIÁLOGO CON ESTA NAVEGACIÓN
+        // CORRECCIÓN: Se pasa un barcode vacío o nulo si no se encontró nada,
+        // o se puede pedir al usuario que lo ingrese.
+        // En este caso, como no se encontró barcode, pasamos null o string vacío.
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const AddProductScreen(initialBarcode: ""),
+          ),
+        ).then((_) {
+          // Al volver, reiniciamos el escáner si estaba activo
+          _resetScanner();
+        });
+      }
+
+    } catch (e) {
+      debugPrint("Error foto manual: $e");
+      setState(() => _processingBarcode = false);
+      if (_isAutoScanEnabled) _startImageStream();
+    }
+  }
+
+  // --- LÓGICA AUTOMÁTICA ---
+  Future<void> _onBarcodeDetected(String barcode) async {
+    if (_processingBarcode) return;
+    _processingBarcode = true;
+    await _stopStreamSafely();
+    _handleFoundCode(barcode);
+  }
+
+  // --- NAVEGACIÓN ---
+  void _handleFoundCode(String barcode) {
+    debugPrint("🔍 Procesando código: $barcode");
+
+    // MOCK TEMPORAL
+    bool productFound = (barcode == "7750000000000");
+
+    if (!mounted) return;
+
+    if (productFound) {
+      debugPrint("✅ Producto encontrado.");
+      // Navegar a confirmación...
+    } else {
+      debugPrint("⚠️ Producto no encontrado.");
+      _showManualEntryDialog(barcode);
+    }
+  }
+
+  void _showManualEntryDialog(String barcode) {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.cardSurface,
-        title: const Text("Resumen del Escaneo", style: TextStyle(color: Colors.white)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.qr_code, color: AppColors.primary),
-              title: const Text("Código", style: TextStyle(color: Colors.grey, fontSize: 12)),
-              subtitle: Text(_tempBarcode ?? "Manual", style: const TextStyle(color: Colors.white)),
-            ),
-            const Divider(color: Colors.grey),
-            ListTile(
-              leading: const Icon(Icons.calendar_today, color: AppColors.primary),
-              title: const Text("Vencimiento", style: TextStyle(color: Colors.grey, fontSize: 12)),
-              subtitle: Text(
-                  "${selectedDate.day}/${selectedDate.month}/${selectedDate.year}",
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)
-              ),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: nameController,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                labelText: "Nombre del Producto",
-                labelStyle: const TextStyle(color: Colors.grey),
-                filled: true,
-                fillColor: AppColors.background,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-            ),
-          ],
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        title: const Text("Producto Nuevo", style: TextStyle(color: Colors.white)),
+        content: Text(
+          "No encontramos datos para $barcode.\n¿Deseas agregarlo manualmente?",
+          style: const TextStyle(color: Colors.white70),
         ),
         actions: [
           TextButton(
             onPressed: () {
-              setState(() {
-                _currentStep = ScanStep.barcode;
-                _tempBarcode = null;
-                _detectedProductName = null;
-              });
-              Navigator.pop(context);
-              _startBarcodeStream();
+              Navigator.pop(ctx);
+              _resetScanner();
             },
-            child: const Text("Descartar", style: TextStyle(color: Colors.grey)),
+            child: const Text("Cancelar"),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-            onPressed: () async {
-              if (nameController.text.isEmpty) return;
-
-              final newProduct = ProductEntity(
-                id: DateTime.now().millisecondsSinceEpoch.toString(),
-                name: nameController.text.trim(),
-                barcode: _tempBarcode,
-                expirationDate: selectedDate,
-                addedDate: DateTime.now(),
-                category: "Escaneado",
-                quantity: 1,
-              );
-
-              await ref.read(pantryRepositoryProvider).addProduct(newProduct);
-
-              if (context.mounted) {
-                Navigator.pop(context);
-                setState(() {
-                  _currentStep = ScanStep.barcode;
-                  _tempBarcode = null;
-                  _detectedProductName = null;
-                });
-                _startBarcodeStream();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("✅ Guardado exitoso")),
-                );
-              }
+            onPressed: () {
+              Navigator.pop(ctx);
+              // Ir a pantalla de agregar manual pasando el barcode
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => AddProductScreen(initialBarcode: barcode),
+                ),
+              ).then((_) => _resetScanner());
             },
-            child: const Text("GUARDAR", style: TextStyle(color: Colors.black)),
+            child: const Text("Agregar Manual", style: TextStyle(color: Colors.black)),
           ),
         ],
       ),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    if (!_isCameraInitialized || _controller == null) {
-      return const Scaffold(backgroundColor: Colors.black, body: Center(child: CircularProgressIndicator()));
+  void _resetScanner() {
+    if (mounted) {
+      setState(() => _processingBarcode = false);
+      if (_isAutoScanEnabled) _startImageStream();
     }
-
-    final String guideText = _currentStep == ScanStep.barcode
-        ? "1. Enfoca el CÓDIGO DE BARRAS"
-        : "2. Ahora toma foto a la FECHA";
-
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          CameraPreview(_controller!),
-          Container(color: Colors.black.withValues(alpha: 0.5)),
-
-          SafeArea(
-            child: Column(
-              children: [
-                _buildTopBar(),
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(guideText, style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-                ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  height: _currentStep == ScanStep.barcode ? 150 : 100,
-                  width: 300,
-                  child: CustomPaint(
-                    foregroundPainter: CornerPainter(
-                        color: _currentStep == ScanStep.barcode ? Colors.white : AppColors.primary
-                    ),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                            color: (_currentStep == ScanStep.barcode ? Colors.white : AppColors.primary).withValues(alpha: 0.3)
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                ),
-                const Spacer(),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 40),
-                  child: _currentStep == ScanStep.barcode
-                      ? _buildBarcodeControls()
-                      : _buildDateControls(),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBarcodeControls() {
-    return Column(
-      children: [
-        if (_detectedProductName != null)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: Text("¡$_detectedProductName detectado!", style: const TextStyle(color: Colors.greenAccent)),
-          ),
-        const CircularProgressIndicator(color: Colors.white),
-        const SizedBox(height: 10),
-        const Text("Buscando código...", style: TextStyle(color: Colors.white70)),
-        const SizedBox(height: 20),
-        TextButton(
-          onPressed: () {
-            _onBarcodeFound("Manual");
-          },
-          child: const Text("¿No tiene código? Saltar", style: TextStyle(color: Colors.white)),
-        )
-      ],
-    );
-  }
-
-  Widget _buildDateControls() {
-    return GestureDetector(
-      onTap: _takePictureAndScanDate,
-      child: Container(
-        height: 80,
-        width: 80,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: Border.all(color: AppColors.primary, width: 4),
-          color: Colors.white.withValues(alpha: 0.2),
-        ),
-        child: const Icon(Icons.camera_alt, color: Colors.white, size: 40),
-      ),
-    );
-  }
-
-  InputImage? _inputImageFromCameraImage(CameraImage image) {
-    final camera = _controller!.description;
-    final sensorOrientation = camera.sensorOrientation;
-
-    final rotation = InputImageRotationValue.fromRawValue(sensorOrientation);
-    if (rotation == null) return null;
-
-    final format = InputImageFormatValue.fromRawValue(image.format.raw);
-    if (format == null || (Platform.isAndroid && format != InputImageFormat.nv21)) return null;
-
-    return InputImage.fromBytes(
-      bytes: image.planes.first.bytes,
-      metadata: InputImageMetadata(
-        size: Size(image.width.toDouble(), image.height.toDouble()),
-        rotation: rotation,
-        format: format,
-        bytesPerRow: image.planes.first.bytesPerRow,
-      ),
-    );
-  }
-
-  Widget _buildTopBar() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        IconButton(
-          icon: Icon(Icons.flash_on, color: _isFlashOn ? AppColors.primary : Colors.white),
-          onPressed: _toggleFlash,
-        ),
-      ],
-    );
   }
 
   void _toggleFlash() async {
@@ -387,15 +265,9 @@ class _ScanScreenState extends ConsumerState<ScanScreen> with WidgetsBindingObse
         await _controller!.setFlashMode(FlashMode.torch);
       }
       setState(() => _isFlashOn = !_isFlashOn);
-    } catch (e) { debugPrint(e.toString()); }
-  }
-
-  @override
-  void dispose() {
-    _barcodeScanner.close();
-    WidgetsBinding.instance.removeObserver(this);
-    _controller?.dispose();
-    super.dispose();
+    } catch (e) {
+      debugPrint("Error flash: $e");
+    }
   }
 
   @override
@@ -406,5 +278,243 @@ class _ScanScreenState extends ConsumerState<ScanScreen> with WidgetsBindingObse
     } else if (state == AppLifecycleState.resumed) {
       _initCamera();
     }
+  }
+
+@override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _barcodeScanner.close();
+    
+    // CORRECCIÓN: Usamos '_controller' en lugar de '_cameraController'
+    try {
+      _controller?.dispose();
+    } catch (e) {
+      debugPrint("Error silenciado al cerrar cámara: $e");
+    }
+    
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_isCameraInitialized || _controller == null) {
+      return const Scaffold(
+          backgroundColor: Colors.black,
+          body: Center(child: CircularProgressIndicator(color: AppColors.primary))
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          SizedBox.expand(
+            child: CameraPreview(_controller!),
+          ),
+          Container(color: Colors.black.withValues(alpha: 0.5)),
+          SafeArea(
+            child: Column(
+              children: [
+                _buildTopBar(),
+                const Spacer(),
+
+                // Mensaje dinámico traducido
+                Text(
+                  _isAutoScanEnabled
+                      ? "Alinea el código de barras"
+                      : "Usa el botón para capturar",
+                  style: const TextStyle(color: Colors.white70, fontSize: 14),
+                ),
+                const SizedBox(height: 20),
+
+                _buildScannerFrame(),
+
+                const SizedBox(height: 30),
+
+                if (_processingBarcode)
+                  const CircularProgressIndicator(color: AppColors.primary)
+                else
+                  _buildAiDetectingTag(),
+
+                const Spacer(),
+
+                TextButton(
+                  onPressed: () {
+                    // Acción manual directa (sin código)
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AddProductScreen(initialBarcode: null),
+                      ),
+                    ).then((_) => _resetScanner());
+                  },
+                  child: const Text(
+                    "¿Problemas? Ingresar código manual",
+                    style: TextStyle(
+                      color: Colors.white,
+                      decoration: TextDecoration.underline,
+                      decorationColor: Colors.white,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                _buildBottomControls(),
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTopBar() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          CircleAvatar(
+            backgroundColor: const Color(0xFF1E1E1E),
+            child: IconButton(
+              icon: const Icon(Icons.close, color: Colors.white),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1E1E1E),
+              borderRadius: BorderRadius.circular(30),
+            ),
+            child: const Text(
+              "Escanear Producto",
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            ),
+          ),
+          CircleAvatar(
+            backgroundColor: _isFlashOn ? AppColors.primary : const Color(0xFF1E1E1E),
+            child: IconButton(
+              icon: Icon(Icons.flash_on, color: _isFlashOn ? Colors.black : Colors.white),
+              onPressed: _toggleFlash,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScannerFrame() {
+    return SizedBox(
+      width: 320,
+      height: 150,
+      child: CustomPaint(
+        foregroundPainter: CornerPainter(
+          color: AppColors.primary,
+          strokeWidth: 4.0,
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.white12, width: 1),
+            borderRadius: BorderRadius.circular(20),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAiDetectingTag() {
+    if (!_isAutoScanEnabled) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.orangeAccent,
+          borderRadius: BorderRadius.circular(30),
+        ),
+        child: const Text(
+          "USA EL BOTÓN DE CAPTURA",
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.primary,
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.5),
+            blurRadius: 20,
+            spreadRadius: 2,
+          ),
+        ],
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.qr_code_scanner, color: Colors.black, size: 18),
+          SizedBox(width: 8),
+          Text(
+            "BUSCANDO CÓDIGO...",
+            style: TextStyle(
+              color: Colors.black,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.0,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomControls() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 40),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(16)),
+            child: const Icon(Icons.photo_library_outlined, color: Colors.white70),
+          ),
+
+          // BOTÓN PRINCIPAL
+          GestureDetector(
+            onTap: _takePictureAndScan,
+            child: Container(
+              height: 80,
+              width: 80,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                    color: _processingBarcode ? Colors.grey : Colors.white,
+                    width: 4
+                ),
+              ),
+              child: Container(
+                margin: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: _processingBarcode ? Colors.grey : Colors.white,
+                  shape: BoxShape.circle,
+                ),
+                child: _processingBarcode
+                    ? const CircularProgressIndicator(color: Colors.black)
+                    : const Icon(Icons.camera_alt, color: Colors.black, size: 30),
+              ),
+            ),
+          ),
+
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(16)),
+            child: const Icon(Icons.keyboard_alt_outlined, color: Colors.white70),
+          ),
+        ],
+      ),
+    );
   }
 }
