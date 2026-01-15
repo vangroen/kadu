@@ -52,7 +52,14 @@ class PantryScreen extends ConsumerWidget {
                       color: AppColors.primary.withOpacity(0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: _buildProductImage(product.imageUrl),
+                    child: GestureDetector(
+                      onTap: () {
+                        if (product.imageUrl != null && product.imageUrl!.isNotEmpty) {
+                          _showImagePreview(context, product.imageUrl!);
+                        }
+                      },
+                      child: _buildProductImage(product.imageUrl),
+                    ),
                   ),
                   title: Text(
                     product.name,
@@ -75,30 +82,67 @@ class PantryScreen extends ConsumerWidget {
     );
   }
 
+
+
+  // Helper para obtener el proveedor de imagen (lo reusamos para el modal)
+  ImageProvider? _getImageProvider(String imageUrl) {
+    if (imageUrl.startsWith('http')) {
+      return NetworkImage(imageUrl);
+    }
+    try {
+      return MemoryImage(base64Decode(imageUrl));
+    } catch (_) {
+      return null;
+    }
+  }
+
   Widget _buildProductImage(String? imageUrl) {
     if (imageUrl == null || imageUrl.isEmpty) {
       return const Icon(Icons.fastfood, color: AppColors.primary);
     }
-    
-    // Si empieza con http es URL antigua o externa
-    if (imageUrl.startsWith('http')) {
-      return CircleAvatar(
-        radius: 20,
-        backgroundColor: Colors.transparent,
-        backgroundImage: NetworkImage(imageUrl),
-      );
-    }
-    
-    // Si no, asumimos Base64
-    try {
-      final bytes = base64Decode(imageUrl);
-      return CircleAvatar(
-        radius: 20,
-        backgroundColor: Colors.transparent,
-        backgroundImage: MemoryImage(bytes),
-      );
-    } catch (e) {
+
+    final imageProvider = _getImageProvider(imageUrl);
+    if (imageProvider == null) {
       return const Icon(Icons.error, color: Colors.red);
     }
+
+    return CircleAvatar(
+      radius: 20,
+      backgroundColor: Colors.transparent,
+      backgroundImage: imageProvider,
+    );
+  }
+
+  void _showImagePreview(BuildContext context, String imageUrl) {
+    final imageProvider = _getImageProvider(imageUrl);
+    if (imageProvider == null) return;
+
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.9), // Fondo casi negro
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: EdgeInsets.zero,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Imagen interactiva (zoom opcional)
+            InteractiveViewer(
+              maxScale: 4.0,
+              child: Image(image: imageProvider, fit: BoxFit.contain),
+            ),
+            // Botón de cerrar
+            Positioned(
+              top: 40,
+              right: 20,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white, size: 30),
+                onPressed: () => Navigator.pop(ctx),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
