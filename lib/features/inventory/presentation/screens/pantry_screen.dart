@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -51,13 +52,7 @@ class PantryScreen extends ConsumerWidget {
                       color: AppColors.primary.withOpacity(0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: product.imageUrl != null 
-                      ? CircleAvatar(
-                          radius: 20,
-                          backgroundColor: Colors.transparent,
-                          backgroundImage: NetworkImage(product.imageUrl!),
-                        )
-                      : const Icon(Icons.fastfood, color: AppColors.primary),
+                    child: _buildProductImage(product.imageUrl),
                   ),
                   title: Text(
                     product.name,
@@ -78,5 +73,32 @@ class PantryScreen extends ConsumerWidget {
         },
       ),
     );
+  }
+
+  Widget _buildProductImage(String? imageUrl) {
+    if (imageUrl == null || imageUrl.isEmpty) {
+      return const Icon(Icons.fastfood, color: AppColors.primary);
+    }
+    
+    // Si empieza con http es URL antigua o externa
+    if (imageUrl.startsWith('http')) {
+      return CircleAvatar(
+        radius: 20,
+        backgroundColor: Colors.transparent,
+        backgroundImage: NetworkImage(imageUrl),
+      );
+    }
+    
+    // Si no, asumimos Base64
+    try {
+      final bytes = base64Decode(imageUrl);
+      return CircleAvatar(
+        radius: 20,
+        backgroundColor: Colors.transparent,
+        backgroundImage: MemoryImage(bytes),
+      );
+    } catch (e) {
+      return const Icon(Icons.error, color: Colors.red);
+    }
   }
 }

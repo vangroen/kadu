@@ -46,27 +46,6 @@ class PantryRepository {
     }
   }
 
-  // --- SUBIR IMAGEN ---
-  Future<String?> uploadImage(File imageFile, String productId) async {
-    try {
-      // Ruta: images/users/[uid]/[productId].jpg
-      final ref = FirebaseStorage.instance
-          .ref()
-          .child('images')
-          .child('users')
-          .child(uid)
-          .child('$productId.jpg');
-
-      await ref.putFile(imageFile);
-      final url = await ref.getDownloadURL();
-      print("✅ Imagen subida: $url");
-      return url;
-    } catch (e) {
-      print("❌ Error subiendo imagen: $e");
-      return null;
-    }
-  }
-
   // --- FUNCION PARA LEER ---
   Stream<List<ProductEntity>> getPantry() {
     // Escuchamos solo la colección del usuario actual

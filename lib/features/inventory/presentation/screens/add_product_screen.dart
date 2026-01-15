@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:intl/intl.dart';
@@ -134,12 +136,25 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
       // para permitir múltiples productos con el mismo código de barras.
       final String productId = DateTime.now().millisecondsSinceEpoch.toString();
 
-      // 1. Subir imagen si existe
+      // 1. Procesar imagen (Compresión + Base64)
       String? imageUrl;
       if (_productImage != null) {
-        imageUrl = await ref.read(pantryRepositoryProvider).uploadImage(_productImage!, productId);
-        if (imageUrl == null) {
-          throw Exception("Fallo la subida de la imagen. Verifica tu conexión o reglas de Firebase Storage.");
+        try {
+          // A. Leer bytes originales
+          final bytes = await _productImage!.readAsBytes();
+          
+          // B. Comprimir agresivamente
+          final compressedBytes = await FlutterImageCompress.compressWithList(
+            bytes,
+            minHeight: 800,
+            minWidth: 800,
+            quality: 60,
+          );
+          
+          // C. Convertir a Base64
+          imageUrl = base64Encode(compressedBytes);
+        } catch (e) {
+          debugPrint("Error comprimiendo imagen: $e");
         }
       }
 
