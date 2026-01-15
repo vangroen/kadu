@@ -217,54 +217,58 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // FOTO
+              // FOTO UNIFICADA (Nueva, Existente o Placeholder)
               Center(
                 child: GestureDetector(
                   onTap: _takeProductPhoto,
-                  child: Container(
-                    height: 150,
-                    width: 150,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1E1E1E),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.white24),
-                      image: _productImage != null 
-                        ? DecorationImage(image: FileImage(_productImage!), fit: BoxFit.cover)
-                        : null
-                    ),
-                    child: _productImage == null && widget.productToEdit?.imageUrl == null
-                        ? Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: const [
-                              Icon(Icons.camera_alt, color: AppColors.primary, size: 40),
-                              SizedBox(height: 10),
-                              Text("Foto / Nombre", style: TextStyle(color: Colors.white54, fontSize: 12))
-                            ],
-                          )
-                        : null, // Si tiene imagen (nueva o vieja), no mostramos el placeholder
+                  child: Stack(
+                    children: [
+                      Container(
+                        height: 150,
+                        width: 150,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1E1E1E),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: Colors.white24),
+                          image: _productImage != null 
+                            ? DecorationImage(image: FileImage(_productImage!), fit: BoxFit.cover)
+                            : (widget.productToEdit?.imageUrl != null 
+                                ? DecorationImage(
+                                    image: MemoryImage(base64Decode(widget.productToEdit!.imageUrl!)), 
+                                    fit: BoxFit.cover
+                                  )
+                                : null),
+                        ),
+                        child: (_productImage == null && widget.productToEdit?.imageUrl == null)
+                            ? Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: const [
+                                  Icon(Icons.camera_alt, color: AppColors.primary, size: 40),
+                                  SizedBox(height: 10),
+                                  Text("Foto / Nombre", style: TextStyle(color: Colors.white54, fontSize: 12))
+                                ],
+                              )
+                            : null,
+                      ),
+                      
+                      // ICONO EDITAR (Lápiz) - Solo si hay imagen
+                      if (_productImage != null || widget.productToEdit?.imageUrl != null)
+                        Positioned(
+                          bottom: 8,
+                          right: 8,
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: const BoxDecoration(
+                              color: Colors.black54,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.edit, color: Colors.white, size: 16),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               ),
-              // PREVIEW IMAGEN (SI ES EDICIÓN Y NO HAY FOTO NUEVA)
-              if (_productImage == null && widget.productToEdit?.imageUrl != null)
-                Container(
-                   margin: const EdgeInsets.only(top: 10),
-                   height: 150, width: 150,
-                   alignment: Alignment.center,
-                   // Hack visual: Superponemos la imagen base64 encima del placeholder
-                   // usando Transform.translate o un Stack hubiera sido mejor, pero esto funciona rápido.
-                   child: ClipRRect(
-                     borderRadius: BorderRadius.circular(20),
-                     child: Image.memory(
-                       base64Decode(widget.productToEdit!.imageUrl!),
-                       height: 150, width: 150, fit: BoxFit.cover,
-                       errorBuilder: (_,__,___) => const Icon(Icons.broken_image, color: Colors.white),
-                     ),
-                   ),
-                ),
-                // Nota: La imagen se muestra duplicada? No.
-                // El Container de arriba (línea 207) tiene decoration image que usa _productImage.
-                // Si _productImage es null, el decoration no muestra nada.
-                // Por eso añadí este bloque extra para mostrar la imagen base64 si existe.
 
               // LOADING OVERLAY
               if (_isAnalyzing)

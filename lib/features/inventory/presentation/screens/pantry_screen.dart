@@ -133,37 +133,60 @@ class PantryScreen extends ConsumerWidget {
                     );
                   }
                 },
-                child: Card(
+                  child: Card(
                   color: AppColors.cardSurface,
                   margin: const EdgeInsets.only(bottom: 12),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  child: ListTile(
-                    leading: Container(
-                      padding: product.imageUrl == null ? const EdgeInsets.all(10) : EdgeInsets.zero,
-                      decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.1),
-                        shape: BoxShape.circle,
+                  // SEMÁFORO VISUAL: Borde izquierdo de color
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      gradient: LinearGradient(
+                        colors: [
+                          _getStatusColor(product.expirationDate).withOpacity(0.15),
+                          Colors.transparent
+                        ],
+                        begin: Alignment.centerLeft,
+                        end: Alignment.centerRight,
                       ),
-                      child: GestureDetector(
-                        onTap: () {
-                          if (product.imageUrl != null && product.imageUrl!.isNotEmpty) {
-                            _showImagePreview(context, product.imageUrl!);
-                          }
-                        },
-                        child: _buildProductImage(product.imageUrl),
+                      border: Border(
+                        left: BorderSide(
+                          color: _getStatusColor(product.expirationDate),
+                          width: 6,
+                        ),
                       ),
                     ),
-                    title: Text(
-                      product.name,
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                    ),
-                    subtitle: Text(
-                      "Vence: ${DateFormat('dd/MM/yyyy').format(product.expirationDate)}",
-                      style: const TextStyle(color: Colors.grey),
-                    ),
-                    trailing: Text(
-                      "x${product.quantity}",
-                      style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 16),
+                    child: ListTile(
+                      leading: Container(
+                        padding: product.imageUrl == null ? const EdgeInsets.all(10) : EdgeInsets.zero,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: GestureDetector(
+                          onTap: () {
+                            if (product.imageUrl != null && product.imageUrl!.isNotEmpty) {
+                              _showImagePreview(context, product.imageUrl!);
+                            }
+                          },
+                          child: _buildProductImage(product.imageUrl),
+                        ),
+                      ),
+                      title: Text(
+                        product.name,
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text(
+                        _getExpirationText(product.expirationDate),
+                        style: TextStyle(
+                          color: _getStatusColor(product.expirationDate), 
+                          fontWeight: FontWeight.w500
+                        ),
+                      ),
+                      trailing: Text(
+                        "x${product.quantity}",
+                        style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
                     ),
                   ),
                 ),
@@ -175,7 +198,30 @@ class PantryScreen extends ConsumerWidget {
     );
   }
 
+  // --- LÓGICA DEL SEMÁFORO ---
+  Color _getStatusColor(DateTime expirationDate) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final date = DateTime(expirationDate.year, expirationDate.month, expirationDate.day);
+    final days = date.difference(today).inDays;
 
+    if (days <= 0) return Colors.redAccent; // Vencido
+    if (days <= 15) return Colors.orangeAccent; // Atención (15 días)
+    return Colors.greenAccent; // Fresco
+  }
+
+  String _getExpirationText(DateTime expirationDate) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final date = DateTime(expirationDate.year, expirationDate.month, expirationDate.day);
+    final days = date.difference(today).inDays;
+    final dateStr = DateFormat('dd/MM/yy').format(expirationDate);
+
+    if (days < 0) return "VENCIDO hace ${days.abs()} días ($dateStr)";
+    if (days == 0) return "VENCE HOY ($dateStr)";
+    if (days <= 15) return "Vence en $days días ($dateStr)";
+    return "Vence el $dateStr";
+  }
 
   // Helper para obtener el proveedor de imagen (lo reusamos para el modal)
   ImageProvider? _getImageProvider(String imageUrl) {

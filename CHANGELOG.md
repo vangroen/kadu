@@ -5,6 +5,16 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.0.4] - 2026-01-15
+### Rendimiento, OCR y UX
+- **Corrección de Pantalla Negra**: Se eliminó el error donde la cámara se quedaba en negro al navegar rápidamente entre pantallas.
+- **Cámara Instantánea**: Reemplazo del selector de fotos nativo por una cámara integrada optimizada. Ahora abrir la cámara de producto es inmediato (sin delay de 2s).
+- **OCR Mejorado**: Soporte para formatos de fecha complejos (ej: "VENCE: 26 ABR 26") con mapeo inteligente de meses en español.
+- **Feedback Visual**: Nuevo indicador de carga (spinner) mientras la cámara se inicializa por seguridad.
+
+### Commits
+- `2eb3ce5` feat: performance camara, y ocr para fechas de vencimiento
+
 ## [1.0.3] - 2026-01-15
 ### Mejoras (UX)
 - **Gestos de Deslizamiento Mejorados**:
