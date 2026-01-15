@@ -26,6 +26,12 @@ Cada usuario tiene su propia base de datos segura.
 
 Sincronización en tiempo real: Lo que escaneas en tu celular aparece en el de tu familia.
 
+**Gestión Intuitiva:**
+- **Editar:** Desliza a la **derecha** (fondo azul) para modificar un producto.
+- **Eliminar:** Desliza a la **izquierda** (fondo rojo) para borrar. (Incluye confirmación).
+- **Visualizar:** Toca la foto para verla en detalle con zoom.
+
+
 **[NUEVO] Almacenamiento de Fotos "Lightweight":** Implementamos un sistema de compresión inteligente que guarda las fotos de tus productos directamente en la base de datos (Base64), eliminando la dependencia de configuraciones complejas de Storage y asegurando que la app siga siendo rápida y gratuita de operar.
 
 🔍 Vista Previa de Productos:

@@ -13,8 +13,9 @@ import 'package:kadu/features/inventory/domain/entities/product_entity.dart';
 // --- PANTALLA PRINCIPAL: ALTA DE PRODUCTO ---
 class AddProductScreen extends ConsumerStatefulWidget {
   final String? initialBarcode;
+  final ProductEntity? productToEdit; // Nuevo parametro para editar
 
-  const AddProductScreen({super.key, this.initialBarcode});
+  const AddProductScreen({super.key, this.initialBarcode, this.productToEdit});
 
   @override
   ConsumerState<AddProductScreen> createState() => _AddProductScreenState();
@@ -33,6 +34,20 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
 
   // Servicio OCR
   final _textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
+  
+  @override
+  void initState() {
+    super.initState();
+    // Si estamos editando, precargamos los datos
+    if (widget.productToEdit != null) {
+      final p = widget.productToEdit!;
+      _nameCtrl.text = p.name;
+      _quantityCtrl.text = p.quantity.toString();
+      _selectedDate = p.expirationDate;
+      // La imagen se maneja diferente: si hay, la mostraremos decoded del Base64
+      // pero _productImage seguirá null a menos que el usuario tome una FOTO NUEVA
+    }
+  }
 
   @override
   void dispose() {
@@ -132,43 +147,43 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
     setState(() => _isAnalyzing = true);
 
     try {
-      // CORRECCIÓN: Siempre generamos un ID único basado en fecha/hora
-      // para permitir múltiples productos con el mismo código de barras.
-      final String productId = DateTime.now().millisecondsSinceEpoch.toString();
+      // Si estamos editando, usamos el ID existente. Si es nuevo, generamos uno.
+      final String productId = widget.productToEdit?.id ?? DateTime.now().millisecondsSinceEpoch.toString();
 
       // 1. Procesar imagen (Compresión + Base64)
       String? imageUrl;
+      
+      // CASO A: Usuario tomó foto nueva -> Procesamos esa
       if (_productImage != null) {
         try {
-          // A. Leer bytes originales
           final bytes = await _productImage!.readAsBytes();
-          
-          // B. Comprimir agresivamente
           final compressedBytes = await FlutterImageCompress.compressWithList(
             bytes,
             minHeight: 800,
             minWidth: 800,
             quality: 60,
           );
-          
-          // C. Convertir a Base64
           imageUrl = base64Encode(compressedBytes);
         } catch (e) {
           debugPrint("Error comprimiendo imagen: $e");
         }
+      } 
+      // CASO B: No tomó foto nueva -> Mantenemos la que tenía (si tenía)
+      else if (widget.productToEdit != null) {
+        imageUrl = widget.productToEdit!.imageUrl;
       }
 
       final newProduct = ProductEntity(
         id: productId,
-        barcode: (widget.initialBarcode != null && widget.initialBarcode!.isNotEmpty) 
-            ? widget.initialBarcode 
-            : null,
+        barcode: (widget.productToEdit != null) 
+            ? widget.productToEdit!.barcode // Mantener barcode si existía
+            : (widget.initialBarcode?.isNotEmpty == true ? widget.initialBarcode : null),
         name: _nameCtrl.text,
         expirationDate: _selectedDate,
-        addedDate: DateTime.now(),
+        addedDate: widget.productToEdit?.addedDate ?? DateTime.now(), // Mantener fecha creación original
         quantity: int.tryParse(_quantityCtrl.text) ?? 1,
         category: 'Manual',
-        imageUrl: imageUrl, // Guardamos la URL
+        imageUrl: imageUrl, 
       );
 
       await ref.read(pantryRepositoryProvider).addProduct(newProduct);
@@ -215,7 +230,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                         ? DecorationImage(image: FileImage(_productImage!), fit: BoxFit.cover)
                         : null
                     ),
-                    child: _productImage == null
+                    child: _productImage == null && widget.productToEdit?.imageUrl == null
                         ? Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: const [
@@ -224,10 +239,32 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                               Text("Foto / Nombre", style: TextStyle(color: Colors.white54, fontSize: 12))
                             ],
                           )
-                        : null,
+                        : null, // Si tiene imagen (nueva o vieja), no mostramos el placeholder
                   ),
                 ),
               ),
+              // PREVIEW IMAGEN (SI ES EDICIÓN Y NO HAY FOTO NUEVA)
+              if (_productImage == null && widget.productToEdit?.imageUrl != null)
+                Container(
+                   margin: const EdgeInsets.only(top: 10),
+                   height: 150, width: 150,
+                   alignment: Alignment.center,
+                   // Hack visual: Superponemos la imagen base64 encima del placeholder
+                   // usando Transform.translate o un Stack hubiera sido mejor, pero esto funciona rápido.
+                   child: ClipRRect(
+                     borderRadius: BorderRadius.circular(20),
+                     child: Image.memory(
+                       base64Decode(widget.productToEdit!.imageUrl!),
+                       height: 150, width: 150, fit: BoxFit.cover,
+                       errorBuilder: (_,__,___) => const Icon(Icons.broken_image, color: Colors.white),
+                     ),
+                   ),
+                ),
+                // Nota: La imagen se muestra duplicada? No.
+                // El Container de arriba (línea 207) tiene decoration image que usa _productImage.
+                // Si _productImage es null, el decoration no muestra nada.
+                // Por eso añadí este bloque extra para mostrar la imagen base64 si existe.
+
               // LOADING OVERLAY
               if (_isAnalyzing)
                 Container(

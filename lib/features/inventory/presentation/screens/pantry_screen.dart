@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../data/pantry_repository.dart';
 import '../providers/pantry_provider.dart';
+import 'add_product_screen.dart';
 
 class PantryScreen extends ConsumerWidget {
   const PantryScreen({super.key});
@@ -41,19 +42,27 @@ class PantryScreen extends ConsumerWidget {
             itemBuilder: (context, index) {
               final product = products[index];
 
-              // Tarjeta del Producto (Deslizar para borrar)
+              // Tarjeta del Producto (Deslizar para borrar o editar)
               return Dismissible(
-                key: Key(product.id ?? UniqueKey().toString()), // Aseguramos key única
-                direction: DismissDirection.horizontal,
+                key: Key(product.id ?? UniqueKey().toString()),
+                // EDITAR: De Izquierda a Derecha (StartToEnd) -> Azul
+                // BORRAR: De Derecha a Izquierda (EndToStart) -> Rojo
                 background: Container(
                   alignment: Alignment.centerLeft,
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   margin: const EdgeInsets.only(bottom: 12),
                   decoration: BoxDecoration(
-                    color: Colors.red,
+                    color: Colors.blue,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.delete, color: Colors.white),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: const [
+                      Icon(Icons.edit, color: Colors.white, size: 30),
+                      SizedBox(width: 8),
+                      Text("EDITAR", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))
+                    ],
+                  ),
                 ),
                 secondaryBackground: Container(
                   alignment: Alignment.centerRight,
@@ -63,16 +72,66 @@ class PantryScreen extends ConsumerWidget {
                     color: Colors.red,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.delete, color: Colors.white),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: const [
+                      Text("ELIMINAR", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      SizedBox(width: 8),
+                      Icon(Icons.delete, color: Colors.white, size: 30),
+                    ],
+                  ),
                 ),
+                confirmDismiss: (direction) async {
+                  // CASO 1: EDITAR (Swipe Right)
+                  if (direction == DismissDirection.startToEnd) {
+                    // Navegamos a editar
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => AddProductScreen(productToEdit: product),
+                      ),
+                    );
+                    return false; // NO borramos la fila, solo fuimos a editar
+                  }
+                  
+                  // CASO 2: BORRAR (Swipe Left)
+                  if (direction == DismissDirection.endToStart) {
+                    final bool? confirm = await showDialog(
+                      context: context,
+                      builder: (BuildContext context) {
+                        return AlertDialog(
+                          backgroundColor: const Color(0xFF1E1E1E),
+                          title: const Text("Confirmar eliminación", style: TextStyle(color: Colors.white)),
+                          content: Text(
+                            "¿Estás seguro de que deseas eliminar '${product.name}'?",
+                            style: const TextStyle(color: Colors.white70),
+                          ),
+                          actions: <Widget>[
+                            TextButton(
+                              onPressed: () => Navigator.of(context).pop(false),
+                              child: const Text("CANCELAR", style: TextStyle(color: Colors.white54)),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.of(context).pop(true),
+                              child: const Text("ELIMINAR", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                    return confirm ?? false;
+                  }
+                  
+                  return false;
+                },
                 onDismissed: (direction) {
-                  // 1. Borrar visualmente y en BD
-                  ref.read(pantryRepositoryProvider).deleteProduct(product.id);
-
-                  // 2. Feedback
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('🗑️ ${product.name} eliminado')),
-                  );
+                  // Solo llegamos aquí si confirmDismiss retornó true (Borrar)
+                  if (direction == DismissDirection.endToStart) {
+                    ref.read(pantryRepositoryProvider).deleteProduct(product.id);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('🗑️ ${product.name} eliminado')),
+                    );
+                  }
                 },
                 child: Card(
                   color: AppColors.cardSurface,
