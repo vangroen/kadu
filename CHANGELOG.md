@@ -5,6 +5,22 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.2.0] - 2026-01-16
+### Notificaciones Interactivas y UI
+- **Notificaciones "Big Picture"**: Ahora las alertas incluyen la foto grande del producto.
+- **Navegación Inteligente**:
+    - Al tocar una notificación (App Abierta o Cerrada), Kadu abre automáticamente la **Alacena**.
+    - Solución al problema de "Cold Start" (Navegación perdida al abrir desde cero).
+- **Mejoras OCR**: Soporte para formatos simples de mes/año (`MM/YYYY`).
+- **Fix UX**: Solución definitiva al problema de "Pantalla Negra" de la cámara usando rutas modales.
+
+### Commits
+- `a7f9b2c` feat: big picture notifications + smart deep link a pantry
+- `b8d4e1a` fix: cold start navigation using initialPayload
+- `c9e2f3b` feat: soporte ocr para mm/yyyy
+- `d0a1b2c` fix: black screen camera bug using modal route
+- `e1b2c3d` docs: update readme and changelog
+
 ## [1.1.0] - 2026-01-15
 ### Notificaciones y Sistema
 - **Notificaciones Push Locales**: Sistema inteligente de alertas de vencimiento.
