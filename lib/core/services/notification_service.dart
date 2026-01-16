@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'dart:typed_data' as java_typed;
 
+import 'dart:async'; // Para StreamController
+
 class NotificationService {
   // Singleton
   static final NotificationService _instance = NotificationService._internal();
@@ -12,10 +14,31 @@ class NotificationService {
   NotificationService._internal();
 
   final fln.FlutterLocalNotificationsPlugin _notificationsPlugin = fln.FlutterLocalNotificationsPlugin();
+  
+  // Payload capturado si la app se abrió desde notificación (Cold Start)
+  String? initialPayload;
+
+  // Stream para eventos cuando la app ya está corriendo (Foreground/Background)
+  final StreamController<String> _onNotificationClick = StreamController<String>.broadcast();
+  Stream<String> get onNotificationClick => _onNotificationClick.stream;
 
   // Inicialización
   Future<void> init() async {
     tz.initializeTimeZones();
+
+    // 1. Verificar si la app se abrió tocando una notificación (Cold Start)
+    try {
+      final fln.NotificationAppLaunchDetails? details = await _notificationsPlugin.getNotificationAppLaunchDetails();
+      if (details != null && details.didNotificationLaunchApp) {
+        final r = details.notificationResponse;
+        if (r != null && r.payload != null && r.payload!.isNotEmpty) {
+          initialPayload = r.payload;
+          debugPrint("🚀 App lanzada desde notificación: $initialPayload");
+        }
+      }
+    } catch (e) {
+      debugPrint("Error chequeando launch details: $e");
+    }
 
     // Android: Icono en drawable
     const fln.AndroidInitializationSettings androidSettings = fln.AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -33,9 +56,18 @@ class NotificationService {
       settings,
       onDidReceiveNotificationResponse: (details) {
         debugPrint("🔔 Notificación tocada: ${details.payload}");
-        // Aquí podrías navegar a la pantalla de producto si quisieras
+        
+        final payload = details.payload;
+        if (payload != null && payload.isNotEmpty) {
+          // Emitimos evento en lugar de navegar directo
+          _onNotificationClick.add(payload);
+        }
       },
     );
+  }
+
+  void dispose() {
+    _onNotificationClick.close();
   }
 
   // Solicitar Permisos (Android 13+)
@@ -98,11 +130,12 @@ class NotificationService {
         body: body,
         scheduledDate: notificationTime,
         bigPicture: bigPicture,
+        payload: productId, // Pasamos el ID para navegación
       );
     }
   }
 
-  Future<void> _scheduleOne({required int id, required String title, required String body, required DateTime scheduledDate, fln.ByteArrayAndroidBitmap? bigPicture}) async {
+  Future<void> _scheduleOne({required int id, required String title, required String body, required DateTime scheduledDate, fln.ByteArrayAndroidBitmap? bigPicture, String? payload}) async {
     
     // Estilo: BigPicture (si hay foto) o BigText (default)
     final fln.StyleInformation styleInfo = bigPicture != null 
@@ -138,6 +171,7 @@ class NotificationService {
         iOS: fln.DarwinNotificationDetails(),
       ),
       androidScheduleMode: fln.AndroidScheduleMode.exactAllowWhileIdle,
+      payload: payload,
     );
     debugPrint("📅 Alerta agendada ($id): $title para $scheduledDate");
   }
@@ -230,7 +264,8 @@ class NotificationService {
               ledOffMs: 500,
               enableLights: true,
             ),
-          )
+          ),
+          payload: product.id,
         );
       }
     }

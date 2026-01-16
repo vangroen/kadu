@@ -62,6 +62,20 @@ class PantryRepository {
       }).toList();
     });
   }
+
+  // --- OBTENER UN SOLO PRODUCTO ---
+  Future<ProductEntity?> getProductById(String id) async {
+    try {
+      final doc = await _userPantry.doc(id).get();
+      if (!doc.exists) return null;
+      final data = doc.data() as Map<String, dynamic>;
+      return ProductEntity.fromMap(data, doc.id);
+    } catch (e) {
+      print("❌ Error obteniendo producto $id: $e");
+      return null;
+    }
+  }
+
   // --- FUNCION PARA BORRAR ---
   Future<void> deleteProduct(String productId) async {
     try {

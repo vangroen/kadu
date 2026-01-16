@@ -8,6 +8,9 @@ import '../../inventory/domain/entities/product_entity.dart';
 import '../../inventory/presentation/screens/pantry_screen.dart';
 import '../../auth/data/auth_repository.dart';
 
+import 'package:kadu/core/services/notification_service.dart';
+// import 'package:kadu/features/inventory/presentation/screens/product_loader_screen.dart'; // Ya no se usa
+
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -17,6 +20,35 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkInitialNotification();
+    _listenToNotificationStream();
+  }
+
+  // Cold Start
+  void _checkInitialNotification() {
+    final payload = NotificationService().initialPayload;
+    if (payload != null && payload.isNotEmpty) {
+      NotificationService().initialPayload = null;
+      // Navegar a Alacena (Index 1)
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+         setState(() => _currentIndex = 1);
+      });
+    }
+  }
+
+  // Foreground / Background Running
+  void _listenToNotificationStream() {
+    NotificationService().onNotificationClick.listen((payload) {
+      if (mounted) {
+        setState(() => _currentIndex = 1);
+        // Opcional: Podríamos mostrar un mensaje "Buscando producto..."
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

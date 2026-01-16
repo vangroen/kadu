@@ -14,7 +14,8 @@ Nuestra Visión: Convertirnos en el estándar de gestión de inventario domésti
 Nuestra Visión: Convertirnos en el estándar de gestión de inventario doméstico en Latinoamérica, integrando Inteligencia Artificial para hacer que el proceso de "hacer la lista de compras" y "cocinar con lo que tienes" sea automático y sin fricción.
 
 **[NUEVO v1.2] Notificaciones "Big Picture":**
-Ahora las alertas de vencimiento incluyen la **foto real del producto** expandible. ¡Ya no tienes que leer, solo mirar y actuar!
+**[NUEVO v1.2] Notificaciones "Big Picture" Interactivas:**
+Ahora las alertas incluyen la **foto real** del producto. Al tocarlas, Kadu te lleva directo a tu Alacena para que veas qué está por vencer. ¡Ya no tienes que leer, solo mirar y actuar!
 🚀 ¿Qué hace Kadu? (Funcionalidades Clave)
 
 Kadu no es solo una lista de tareas. Es un escáner inteligente que entiende tus productos.
@@ -141,7 +142,7 @@ flutter run
 [x] Guardado eficiente de imágenes (Base64 + Compresión).
 [x] Vista previa de imágenes con Zoom.
 
-[x] Notificaciones Push: Avisar al usuario antes de que algo venza (Estilo Kadu + Big Picture).
+[x] Notificaciones Push: Foto "Big Picture" + Navegación inteligente a la Alacena.
 [x] UX: Cámara modal y fix de pantallas negras.
 
 [ ] Lista de Compras: Integra lo que se acaba con lo que debes comprar.

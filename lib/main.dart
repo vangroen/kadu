@@ -9,6 +9,10 @@ import 'features/auth/data/auth_repository.dart';
 import 'core/services/notification_service.dart';
 
 
+
+// Llave global de navegación para acceder desde servicios sin contexto
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
@@ -35,6 +39,7 @@ class KaduApp extends ConsumerWidget {
     final authState = ref.watch(authStateProvider);
 
     return MaterialApp(
+      navigatorKey: navigatorKey,
       title: 'Kadu',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
