@@ -70,6 +70,20 @@ class OcrService {
       if (_isValidDate(date)) return date;
     }
 
+    // 1.5. FORMATO MES/AÑO: mm/yyyy (07/2026)
+    // Asumimos el primer día del mes como fecha de referencia.
+    final RegExp myPattern = RegExp(
+      r'\b(\d{1,2})[/\-\.](\d{4})\b',
+    );
+    for (final match in myPattern.allMatches(cleanText)) {
+      final date = _parseDate(
+        day: 1, 
+        month: int.parse(match.group(1)!),
+        year: int.parse(match.group(2)!),
+      );
+      if (_isValidDate(date)) return date;
+    }
+
     // 2. FORMATO ALFANUMÉRICO: dd MMM yy (30 SEP 25)
     final RegExp dMmYPattern = RegExp(
       r'\b(\d{1,2})[\s\-\/\.]*([A-Z]{3})[\s\-\/\.]*(\d{2,4})\b',

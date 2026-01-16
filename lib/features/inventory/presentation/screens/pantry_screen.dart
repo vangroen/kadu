@@ -6,6 +6,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../data/pantry_repository.dart';
 import '../providers/pantry_provider.dart';
 import 'add_product_screen.dart';
+import '../../../../core/services/notification_service.dart';
 
 class PantryScreen extends ConsumerWidget {
   const PantryScreen({super.key});
@@ -21,6 +22,31 @@ class PantryScreen extends ConsumerWidget {
         title: const Text("Mi Alacena 📦"),
         backgroundColor: AppColors.background,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications_active, color: Colors.orange),
+            tooltip: "Probar Notificaciones (Vencen <= 15 días)",
+            onPressed: () async {
+              // Obtener lista actual del provider
+              final productsAsync = ref.read(pantryListProvider);
+              
+              if (productsAsync.hasValue) {
+                final products = productsAsync.value!;
+                final count = await NotificationService().checkProductsInstant(products);
+                
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Test finalizado. Alertas enviadas: $count"))
+                  );
+                }
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Espera a que carguen los productos..."))
+                );
+              }
+            },
+          ),
+        ],
       ),
       // Riverpod maneja los 3 estados: Cargando, Error y Datos Listos
       body: pantryAsync.when(
@@ -157,20 +183,24 @@ class PantryScreen extends ConsumerWidget {
                       ),
                     ),
                     child: ListTile(
+                      onTap: () {
+                         if (product.imageUrl != null && product.imageUrl!.isNotEmpty) {
+                            _showImagePreview(context, product.imageUrl!);
+                         } else {
+                            // Feedback si no hay foto
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text("Este producto no tiene foto 📷"), duration: Duration(seconds: 1)),
+                            );
+                         }
+                      },
                       leading: Container(
                         padding: product.imageUrl == null ? const EdgeInsets.all(10) : EdgeInsets.zero,
                         decoration: BoxDecoration(
                           color: AppColors.primary.withOpacity(0.1),
                           shape: BoxShape.circle,
                         ),
-                        child: GestureDetector(
-                          onTap: () {
-                            if (product.imageUrl != null && product.imageUrl!.isNotEmpty) {
-                              _showImagePreview(context, product.imageUrl!);
-                            }
-                          },
-                          child: _buildProductImage(product.imageUrl),
-                        ),
+                        // Ya no necesitamos GestureDetector aqui porque el ListTile lo maneja
+                        child: _buildProductImage(product.imageUrl),
                       ),
                       title: Text(
                         product.name,
@@ -272,11 +302,19 @@ class PantryScreen extends ConsumerWidget {
             ),
             // Botón de cerrar
             Positioned(
-              top: 40,
+              top: 20,
               right: 20,
-              child: IconButton(
-                icon: const Icon(Icons.close, color: Colors.white, size: 30),
-                onPressed: () => Navigator.pop(ctx),
+              child: SafeArea(
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.black54, // Fondo oscuro para contraste
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white, size: 30),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ),
               ),
             ),
           ],

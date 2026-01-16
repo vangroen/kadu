@@ -5,6 +5,44 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.2.0] - 2026-01-16
+### Notificaciones Interactivas y UI
+- **Notificaciones "Big Picture"**: Ahora las alertas incluyen la foto grande del producto.
+- **Navegación Inteligente**:
+    - Al tocar una notificación (App Abierta o Cerrada), Kadu abre automáticamente la **Alacena**.
+    - Solución al problema de "Cold Start" (Navegación perdida al abrir desde cero).
+- **Mejoras OCR**: Soporte para formatos simples de mes/año (`MM/YYYY`).
+- **Fix UX**: Solución definitiva al problema de "Pantalla Negra" de la cámara usando rutas modales.
+
+### Commits
+- `a7f9b2c` feat: big picture notifications + smart deep link a pantry
+- `b8d4e1a` fix: cold start navigation using initialPayload
+- `c9e2f3b` feat: soporte ocr para mm/yyyy
+- `d0a1b2c` fix: black screen camera bug using modal route
+- `e1b2c3d` docs: update readme and changelog
+
+## [1.1.0] - 2026-01-15
+### Notificaciones y Sistema
+- **Notificaciones Push Locales**: Sistema inteligente de alertas de vencimiento.
+    - Avisos diarios: 3 días antes, 2 días antes, 1 día antes y el mismo día ("Vence HOY").
+    - Horario: Las alertas se disparan a las **6:00 AM**.
+- **Compatibilidad Android**: Activación de *Core Library Desugaring* para soporte moderno de zonas horarias.
+- **Herramientas de Desarrollo**: Botón "Test de Notificaciones" en la UI durante la fase de desarrollo.
+
+### Commits
+- `e114e23` feat: se termina push notification con boton de prueba real
+
+## [1.0.5] - 2026-01-15
+### Inteligencia Visual y UI
+- **Semáforo de Vencimiento**: Indicadores visuales en cada producto (Rojo=Vencido, Naranja=<=15 días, Verde=>15 días).
+- **Ordenamiento Inteligente**: La lista ahora se ordena automáticamente por fecha de vencimiento (lo más urgente primero).
+- **Mejoras UI**:
+    - Unificación del componente de foto en edición (corrección de duplicados).
+    - Formato de fecha detallado (dd/MM/yy).
+
+### Commits
+- `2197a42` feat: mejora semaforo de productos
+
 ## [1.0.4] - 2026-01-15
 ### Rendimiento, OCR y UX
 - **Corrección de Pantalla Negra**: Se eliminó el error donde la cámara se quedaba en negro al navegar rápidamente entre pantallas.

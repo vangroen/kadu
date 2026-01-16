@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:intl/intl.dart';
 import 'package:kadu/core/theme/app_colors.dart';
+import 'package:kadu/core/services/notification_service.dart';
 import 'package:kadu/features/inventory/data/pantry_repository.dart';
 import 'package:kadu/features/inventory/domain/entities/product_entity.dart';
 
@@ -188,7 +189,19 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
       );
 
       await ref.read(pantryRepositoryProvider).addProduct(newProduct);
-      
+
+      // --- AGENDAR NOTIFICACIONES ---
+      try {
+        await NotificationService().scheduleExpiryNotifications(
+          newProduct.id, 
+          newProduct.name, 
+          newProduct.expirationDate,
+          base64Image: newProduct.imageUrl
+        );
+      } catch (e) {
+        debugPrint("Error agendando notificaciones: $e");
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("¡Producto Guardado!")));
         Navigator.popUntil(context, (route) => route.isFirst);
@@ -413,6 +426,18 @@ class DateDetector {
           int y = int.parse(matchNum.group(3)!);
           final date = _validateAndBuildDate(d, m, y);
           if (date != null) return date;
+        } catch (_) {}
+      }
+
+      // Intentar Mes/Año (MM/YYYY) -> Asumir día 1
+      final mmYyyyRegex = RegExp(r'\b(\d{1,2})[\/\.\-\s]+(\d{4})\b');
+      final matchMmYyyy = mmYyyyRegex.firstMatch(numericLine);
+      if (matchMmYyyy != null) {
+        try {
+           int m = int.parse(matchMmYyyy.group(1)!);
+           int y = int.parse(matchMmYyyy.group(2)!);
+           final date = _validateAndBuildDate(1, m, y); // Día 1 por defecto
+           if (date != null) return date;
         } catch (_) {}
       }
 
