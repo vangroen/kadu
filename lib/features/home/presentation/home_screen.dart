@@ -8,6 +8,9 @@ import '../../inventory/domain/entities/product_entity.dart';
 import '../../inventory/presentation/screens/pantry_screen.dart';
 import '../../auth/data/auth_repository.dart';
 
+import 'package:kadu/core/services/notification_service.dart';
+// import 'package:kadu/features/inventory/presentation/screens/product_loader_screen.dart'; // Ya no se usa
+
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -17,6 +20,35 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkInitialNotification();
+    _listenToNotificationStream();
+  }
+
+  // Cold Start
+  void _checkInitialNotification() {
+    final payload = NotificationService().initialPayload;
+    if (payload != null && payload.isNotEmpty) {
+      NotificationService().initialPayload = null;
+      // Navegar a Alacena (Index 1)
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+         setState(() => _currentIndex = 1);
+      });
+    }
+  }
+
+  // Foreground / Background Running
+  void _listenToNotificationStream() {
+    NotificationService().onNotificationClick.listen((payload) {
+      if (mounted) {
+        setState(() => _currentIndex = 1);
+        // Opcional: Podríamos mostrar un mensaje "Buscando producto..."
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -109,7 +141,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     );
                   }
                 } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                  }
                 }
               },
             ),
@@ -133,13 +167,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final List<Widget> screens = [
       dashboardScreen,
       const PantryScreen(),
-      const SizedBox(), // Placeholder Scan
+      // Index 2 is now reserved for Scanning action (does not render a body)
       const Center(child: Text('📝 Recipes', style: TextStyle(color: Colors.white))),
       const Center(child: Text('⚙️ Settings', style: TextStyle(color: Colors.white))),
     ];
 
+    // Evitamos renderizar índice 2 (Scan) en el body
+    final int safeIndex = _currentIndex >= 2 ? (_currentIndex - 1) : _currentIndex;
+
     return Scaffold(
-      body: _currentIndex == 2 ? const ScanScreen() : screens[_currentIndex],
+      body: screens.length > safeIndex ? screens[safeIndex] : dashboardScreen,
 
       // BOTÓN FLOTANTE SCAN
       floatingActionButton: Container(
@@ -159,7 +196,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           backgroundColor: AppColors.primary,
           shape: const CircleBorder(),
           elevation: 0,
-          onPressed: () => setState(() => _currentIndex = 2),
+          onPressed: () {
+            // FIX: Navegación Modal en lugar de cambiar index
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const ScanScreen()),
+            );
+          },
           child: const Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -183,18 +226,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             _buildNavItem(Icons.grid_view_rounded, "Home", 0),
             _buildNavItem(Icons.inventory_2_outlined, "Pantry", 1),
             const SizedBox(width: 40),
-            _buildNavItem(Icons.receipt_long_rounded, "Recipes", 3),
-            _buildNavItem(Icons.settings_outlined, "Settings", 4),
+            _buildNavItem(Icons.receipt_long_rounded, "Recipes", 3), // Index 3 visual -> Index 2 lógico
+            _buildNavItem(Icons.settings_outlined, "Settings", 4), // Index 4 visual -> Index 3 lógico
           ],
         ),
       ),
     );
   }
 
-  Widget _buildNavItem(IconData icon, String label, int index) {
-    final isSelected = _currentIndex == index;
+  Widget _buildNavItem(IconData icon, String label, int visualIndex) {
+    // Mapeo Visual -> Lógico para manejar el hueco del scan
+    // Visual: 0(Home), 1(Pantry), --Scan--, 3(Recipes), 4(Settings)
+    // Lógico: 0(Home), 1(Pantry),           2(Recipes), 3(Settings)
+    
+    int logicalIndex = visualIndex;
+    if (visualIndex > 2) logicalIndex = visualIndex - 1;
+
+    final isSelected = _currentIndex == logicalIndex;
+    
     return InkWell(
-      onTap: () => setState(() => _currentIndex = index),
+      onTap: () => setState(() => _currentIndex = logicalIndex),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
