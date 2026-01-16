@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../scan/presentation/scan_screen.dart';
 import '../../inventory/data/pantry_repository.dart';
 import '../../inventory/domain/entities/product_entity.dart';
 import '../../inventory/presentation/screens/pantry_screen.dart';
+import '../../auth/data/auth_repository.dart';
+
+import 'package:kadu/core/services/notification_service.dart';
+// import 'package:kadu/features/inventory/presentation/screens/product_loader_screen.dart'; // Ya no se usa
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -17,84 +22,163 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   int _currentIndex = 0;
 
   @override
+  void initState() {
+    super.initState();
+    _checkInitialNotification();
+    _listenToNotificationStream();
+  }
+
+  // Cold Start
+  void _checkInitialNotification() {
+    final payload = NotificationService().initialPayload;
+    if (payload != null && payload.isNotEmpty) {
+      NotificationService().initialPayload = null;
+      // Navegar a Alacena (Index 1)
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+         setState(() => _currentIndex = 1);
+      });
+    }
+  }
+
+  // Foreground / Background Running
+  void _listenToNotificationStream() {
+    NotificationService().onNotificationClick.listen((payload) {
+      if (mounted) {
+        setState(() => _currentIndex = 1);
+        // Opcional: Podríamos mostrar un mensaje "Buscando producto..."
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // Definimos las pantallas aquí para poder usar 'ref' y 'context'
-    final List<Widget> screens = [
-      // --- PANTALLA 0: DASHBOARD (Con botón de prueba) ---
-      Center(
+    // Obtenemos los datos del usuario actual (que viene de Google)
+    final user = FirebaseAuth.instance.currentUser;
+    final String userName = user?.displayName ?? "Usuario";
+    final String? userPhoto = user?.photoURL;
+
+    // --- PANTALLA 0: DASHBOARD PERSONALIZADO ---
+    final dashboardScreen = Center(
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text('🏠 Home Dashboard', style: TextStyle(color: Colors.white, fontSize: 20)),
-            const SizedBox(height: 20),
+            // Avatar del Usuario
+            CircleAvatar(
+              radius: 40,
+              backgroundColor: AppColors.primary,
+              backgroundImage: userPhoto != null ? NetworkImage(userPhoto) : null,
+              child: userPhoto == null
+                  ? const Icon(Icons.person, size: 40, color: Colors.black)
+                  : null,
+            ),
+            const SizedBox(height: 16),
 
-            // BOTÓN DE PRUEBA FIREBASE
+            Text(
+                'Hola, $userName 👋',
+                style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)
+            ),
+            const Text(
+              'Tu alacena está segura en la nube',
+              style: TextStyle(color: Colors.grey),
+            ),
+
+            const SizedBox(height: 40),
+
+            // Tarjeta de Resumen (Ejemplo)
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppColors.cardSurface,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white10),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  Column(
+                    children: [
+                      Text("0", style: TextStyle(color: AppColors.primary, fontSize: 24, fontWeight: FontWeight.bold)),
+                      Text("Productos", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                    ],
+                  ),
+                  Column(
+                    children: [
+                      Text("0", style: TextStyle(color: AppColors.alertRed, fontSize: 24, fontWeight: FontWeight.bold)),
+                      Text("Vencidos", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 40),
+
+            // BOTÓN PRUEBA FIREBASE (Privado)
             ElevatedButton.icon(
               icon: const Icon(Icons.cloud_upload),
-              label: const Text("PROBAR FIREBASE"),
+              label: const Text("GUARDAR EN MI CUENTA"),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.black,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               ),
               onPressed: () async {
-                // 1. Crear producto de prueba
                 final newProduct = ProductEntity(
-                  id: DateTime.now().millisecondsSinceEpoch.toString(), // ID único temporal
-                  name: "Leche Gloria Test",
-                  expirationDate: DateTime.now().add(const Duration(days: 7)), // Vence en 1 semana
+                  id: DateTime.now().millisecondsSinceEpoch.toString(),
+                  name: "Producto de $userName",
+                  expirationDate: DateTime.now().add(const Duration(days: 15)),
                   addedDate: DateTime.now(),
-                  category: "Lácteos",
+                  category: "Personal",
                   quantity: 1,
                 );
 
-                // 2. Guardar en la nube usando el Repositorio
                 try {
                   await ref.read(pantryRepositoryProvider).addProduct(newProduct);
-
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('✅ ¡Enviado a Firebase! Revisa la consola web.'),
-                        backgroundColor: AppColors.primary,
-                      ),
+                      const SnackBar(content: Text('✅ Guardado en tu espacio privado')),
                     );
                   }
                 } catch (e) {
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('❌ Error: $e'),
-                        backgroundColor: AppColors.alertRed,
-                      ),
-                    );
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
                   }
                 }
+              },
+            ),
+
+            const SizedBox(height: 20),
+
+            // BOTÓN CERRAR SESIÓN
+            TextButton.icon(
+              icon: const Icon(Icons.logout, color: AppColors.alertRed),
+              label: const Text("Cerrar Sesión", style: TextStyle(color: AppColors.alertRed)),
+              onPressed: () async {
+                await ref.read(authRepositoryProvider).signOut();
+                // El AuthGate en main.dart detectará el cambio y te llevará al Login solo
               },
             ),
           ],
         ),
       ),
+    );
 
-      // --- PANTALLA 1: PANTRY ---
+    final List<Widget> screens = [
+      dashboardScreen,
       const PantryScreen(),
-
-      // --- PANTALLA 2: SCAN (Se maneja abajo, esto es placeholder) ---
-      const SizedBox(),
-
-      // --- PANTALLA 3: RECIPES ---
+      // Index 2 is now reserved for Scanning action (does not render a body)
       const Center(child: Text('📝 Recipes', style: TextStyle(color: Colors.white))),
-
-      // --- PANTALLA 4: SETTINGS ---
       const Center(child: Text('⚙️ Settings', style: TextStyle(color: Colors.white))),
     ];
 
-    return Scaffold(
-      // Lógica: Si el índice es 2, mostramos el Scanner a pantalla completa.
-      // Si no, mostramos la pantalla correspondiente de la lista.
-      body: _currentIndex == 2 ? const ScanScreen() : screens[_currentIndex],
+    // Evitamos renderizar índice 2 (Scan) en el body
+    final int safeIndex = _currentIndex >= 2 ? (_currentIndex - 1) : _currentIndex;
 
-      // --- BOTÓN FLOTANTE GIGANTE (SCAN) ---
+    return Scaffold(
+      body: screens.length > safeIndex ? screens[safeIndex] : dashboardScreen,
+
+      // BOTÓN FLOTANTE SCAN
       floatingActionButton: Container(
         height: 75,
         width: 75,
@@ -113,9 +197,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           shape: const CircleBorder(),
           elevation: 0,
           onPressed: () {
-            setState(() {
-              _currentIndex = 2; // Cambia a la pantalla de cámara
-            });
+            // FIX: Navegación Modal en lugar de cambiar index
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const ScanScreen()),
+            );
           },
           child: const Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -128,7 +214,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
 
-      // --- BARRA INFERIOR ---
+      // BARRA INFERIOR
       bottomNavigationBar: BottomAppBar(
         color: AppColors.cardSurface,
         shape: const CircularNotchedRectangle(),
@@ -139,19 +225,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           children: [
             _buildNavItem(Icons.grid_view_rounded, "Home", 0),
             _buildNavItem(Icons.inventory_2_outlined, "Pantry", 1),
-            const SizedBox(width: 40), // Espacio para el botón central
-            _buildNavItem(Icons.receipt_long_rounded, "Recipes", 3),
-            _buildNavItem(Icons.settings_outlined, "Settings", 4),
+            const SizedBox(width: 40),
+            _buildNavItem(Icons.receipt_long_rounded, "Recipes", 3), // Index 3 visual -> Index 2 lógico
+            _buildNavItem(Icons.settings_outlined, "Settings", 4), // Index 4 visual -> Index 3 lógico
           ],
         ),
       ),
     );
   }
 
-  Widget _buildNavItem(IconData icon, String label, int index) {
-    final isSelected = _currentIndex == index;
+  Widget _buildNavItem(IconData icon, String label, int visualIndex) {
+    // Mapeo Visual -> Lógico para manejar el hueco del scan
+    // Visual: 0(Home), 1(Pantry), --Scan--, 3(Recipes), 4(Settings)
+    // Lógico: 0(Home), 1(Pantry),           2(Recipes), 3(Settings)
+    
+    int logicalIndex = visualIndex;
+    if (visualIndex > 2) logicalIndex = visualIndex - 1;
+
+    final isSelected = _currentIndex == logicalIndex;
+    
     return InkWell(
-      onTap: () => setState(() => _currentIndex = index),
+      onTap: () => setState(() => _currentIndex = logicalIndex),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
