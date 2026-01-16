@@ -13,6 +13,9 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 - **Compatibilidad Android**: Activación de *Core Library Desugaring* para soporte moderno de zonas horarias.
 - **Herramientas de Desarrollo**: Botón "Test de Notificaciones" en la UI durante la fase de desarrollo.
 
+### Commits
+- `e114e23` feat: se termina push notification con boton de prueba real
+
 ## [1.0.5] - 2026-01-15
 ### Inteligencia Visual y UI
 - **Semáforo de Vencimiento**: Indicadores visuales en cada producto (Rojo=Vencido, Naranja=<=15 días, Verde=>15 días).
