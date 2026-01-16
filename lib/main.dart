@@ -6,12 +6,18 @@ import 'core/theme/app_theme.dart';
 import 'features/home/presentation/home_screen.dart';
 import 'features/auth/presentation/login_screen.dart';
 import 'features/auth/data/auth_repository.dart';
+import 'core/services/notification_service.dart';
+
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // Inicializar Notificaciones
+  await NotificationService().init();
+  await NotificationService().requestPermissions(); // Pedir permisos al inicio (Android 13+)
 
   runApp(
     const ProviderScope(

@@ -13,9 +13,11 @@ android {
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
-    compileOptions {
+compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // Habilitar desugaring para fechas modernas
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
@@ -44,4 +46,9 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // Librería necesaria para que funcionen las zonas horarias en Android antiguos
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }

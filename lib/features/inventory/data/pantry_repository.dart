@@ -4,6 +4,8 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/data/auth_repository.dart';
 import '../domain/entities/product_entity.dart';
+import '../../../../core/services/notification_service.dart';
+
 
 // --- PROVIDER ---
 // Este Provider ahora inyecta dinámicamente el UID del usuario en el repositorio.
@@ -64,6 +66,12 @@ class PantryRepository {
   Future<void> deleteProduct(String productId) async {
     try {
       await _userPantry.doc(productId).delete();
+      
+      // Cancelar notificaciones asociadas
+      try {
+        await NotificationService().cancelNotifications(productId);
+      } catch (_) {}
+
       print("🗑️ Producto eliminado: $productId");
     } catch (e) {
       print("❌ Error eliminando producto: $e");

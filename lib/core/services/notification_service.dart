@@ -1,0 +1,186 @@
+import 'package:flutter_local_notifications/flutter_local_notifications.dart' as fln;
+import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
+import 'package:flutter/material.dart';
+
+class NotificationService {
+  // Singleton
+  static final NotificationService _instance = NotificationService._internal();
+  factory NotificationService() => _instance;
+  NotificationService._internal();
+
+  final fln.FlutterLocalNotificationsPlugin _notificationsPlugin = fln.FlutterLocalNotificationsPlugin();
+
+  // Inicialización
+  Future<void> init() async {
+    tz.initializeTimeZones();
+
+    // Android: Icono en drawable
+    const fln.AndroidInitializationSettings androidSettings = fln.AndroidInitializationSettings('@mipmap/ic_launcher');
+    
+    // iOS: Permisos por defecto
+    const fln.DarwinInitializationSettings iosSettings = fln.DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
+    );
+
+    const fln.InitializationSettings settings = fln.InitializationSettings(android: androidSettings, iOS: iosSettings);
+
+    await _notificationsPlugin.initialize(
+      settings,
+      onDidReceiveNotificationResponse: (details) {
+        debugPrint("🔔 Notificación tocada: ${details.payload}");
+        // Aquí podrías navegar a la pantalla de producto si quisieras
+      },
+    );
+  }
+
+  // Solicitar Permisos (Android 13+)
+  Future<void> requestPermissions() async {
+    await _notificationsPlugin.resolvePlatformSpecificImplementation<fln.AndroidFlutterLocalNotificationsPlugin>()?.requestNotificationsPermission();
+  }
+
+  // Agendar Alertas de Vencimiento
+  // ID Base: hashCode del productId. 
+  // Sub-IDs: base + 1 (3 días), base + 2 (2 días), base + 3 (1 día), base + 4 (Hoy).
+  Future<void> scheduleExpiryNotifications(String productId, String productName, DateTime expirationDate) async {
+    final int baseId = productId.hashCode;
+    final now = DateTime.now();
+
+    // Notificaciones: 3 días antes, 2 días antes, 1 día antes, y el Día 0.
+    final List<int> daysOffsets = [3, 2, 1, 0];
+
+    for (int offset in daysOffsets) {
+      final scheduledDate = expirationDate.subtract(Duration(days: offset));
+      
+      // Configurar hora: 9:00 AM del día correspondiente
+      // Configurar hora: 6:00 AM del día correspondiente
+      final notificationTime = DateTime(
+        scheduledDate.year,
+        scheduledDate.month,
+        scheduledDate.day,
+        6, 0, 0, // 6:00 AM
+      );
+
+      // Si la fecha ya pasó, no agendar
+      if (notificationTime.isBefore(now)) continue;
+
+      String title;
+      String body;
+
+      if (offset == 0) {
+        title = "🚨 ¡Vence HOY!";
+        body = "Tu producto $productName ha llegado a su fecha límite. ¡Úsalo ya!";
+      } else if (offset == 1) {
+        title = "⚠️ Vence MAÑANA";
+        body = "$productName está a punto de vencer. Prepárate.";
+      } else {
+        title = "⏳ Vence en $offset días";
+        body = "Recuerda consumir $productName antes de que sea tarde.";
+      }
+
+      await _scheduleOne(
+        id: baseId + offset,
+        title: title,
+        body: body,
+        scheduledDate: notificationTime,
+      );
+    }
+  }
+
+  Future<void> _scheduleOne({required int id, required String title, required String body, required DateTime scheduledDate}) async {
+    await _notificationsPlugin.zonedSchedule(
+      id,
+      title,
+      body,
+      tz.TZDateTime.from(scheduledDate, tz.local),
+      fln.NotificationDetails(
+        android: fln.AndroidNotificationDetails(
+          'expiry_channel',
+          'Alertas de Vencimiento',
+          channelDescription: 'Notificaciones para productos próximos a vencer',
+          importance: fln.Importance.high,
+          priority: fln.Priority.high,
+          styleInformation: fln.BigTextStyleInformation(body), // Texto expandible
+        ),
+        iOS: fln.DarwinNotificationDetails(),
+      ),
+      androidScheduleMode: fln.AndroidScheduleMode.exactAllowWhileIdle,
+    );
+    debugPrint("📅 Alerta agendada ($id): $title para $scheduledDate");
+  }
+
+  // --- DEBUG: Verificar Lista Completa Ahora ---
+  Future<int> checkProductsInstant(List<dynamic> products) async {
+    int triggered = 0;
+    const androidDetails = fln.AndroidNotificationDetails(
+      'test_channel',
+      'Canal de Prueba',
+      importance: fln.Importance.max,
+      priority: fln.Priority.high,
+    );
+    const details = fln.NotificationDetails(android: androidDetails);
+
+    final now = DateTime.now();
+    // Normalizamos "hoy" a medianoche para comparar días enteros
+    final today = DateTime(now.year, now.month, now.day);
+
+    for (var product in products) {
+      if (product.expirationDate == null) continue;
+      
+      final String productName = product.name;
+
+      // Calcular diferencia en días
+      final exp = DateTime(product.expirationDate!.year, product.expirationDate!.month, product.expirationDate!.day);
+      final days = exp.difference(today).inDays;
+
+      // Criterio de prueba: Avisar si faltan 15 días o menos (Zona Amarilla/Roja)
+      if (days <= 15) {
+        triggered++;
+        
+        String title;
+        String body;
+
+        if (days < 0) {
+           title = "🔴 ¡Producto Vencido!";
+           body = "Tu $productName venció hace ${days.abs()} días. Revisa su estado.";
+        } else if (days == 0) {
+          title = "🚨 ¡Vence HOY!";
+          body = "Tu producto $productName ha llegado a su fecha límite. ¡Úsalo ya!";
+        } else if (days == 1) {
+          title = "⚠️ Vence MAÑANA";
+          body = "$productName está a punto de vencer. Prepárate.";
+        } else {
+          title = "⏳ Vence en $days días";
+          body = "Recuerda consumir $productName antes de que sea tarde.";
+        }
+
+        await _notificationsPlugin.show(
+          product.id.hashCode, // ID único basado en producto
+          title, 
+          body, 
+          fln.NotificationDetails(
+            android: fln.AndroidNotificationDetails(
+              'test_channel',
+              'Canal de Prueba',
+              importance: fln.Importance.max,
+              priority: fln.Priority.high,
+              styleInformation: fln.BigTextStyleInformation(body), // Texto expandible
+            ),
+          )
+        );
+      }
+    }
+    return triggered;
+  }
+
+  // Cancelar Alertas (al borrar producto)
+  Future<void> cancelNotifications(String productId) async {
+    final int baseId = productId.hashCode;
+    for (int i = 0; i <= 3; i++) {
+      await _notificationsPlugin.cancel(baseId + i);
+    }
+    debugPrint("🗑️ Alertas canceladas para $productId");
+  }
+}

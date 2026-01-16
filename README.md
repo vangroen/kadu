@@ -7,7 +7,9 @@ Kadu: Tu Asistente Inteligente de Alacena 🥑📱
 Kadu nace de una problemática global y cotidiana: el desperdicio de alimentos. Millones de toneladas de comida se tiran cada año simplemente porque olvidamos que estaban en el fondo de la nevera o alacena hasta que caducaron.
 
 Nuestra Misión: Empoderar a los hogares para gestionar su consumo de alimentos de manera inteligente, reduciendo el desperdicio a cero y generando un ahorro económico tangible.
-
+*   **Semaforo Inteligente**: Visualización clara del estado de los alimentos (🟢 Fresco, 🟡 Atento, 🔴 Vencido).
+*   **Notificaciones Locales**: Alertas automáticas a las 6:00 AM para productos próximos a vencer (Cuenta regresiva de 3 días).
+*   **Auto-Sort**: La lista siempre muestra primero lo que está por vencer.
 Nuestra Visión: Convertirnos en el estándar de gestión de inventario doméstico en Latinoamérica, integrando Inteligencia Artificial para hacer que el proceso de "hacer la lista de compras" y "cocinar con lo que tienes" sea automático y sin fricción.
 
 🚀 ¿Qué hace Kadu? (Funcionalidades Clave)

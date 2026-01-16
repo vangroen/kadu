@@ -6,6 +6,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../data/pantry_repository.dart';
 import '../providers/pantry_provider.dart';
 import 'add_product_screen.dart';
+import '../../../../core/services/notification_service.dart';
 
 class PantryScreen extends ConsumerWidget {
   const PantryScreen({super.key});
@@ -21,6 +22,31 @@ class PantryScreen extends ConsumerWidget {
         title: const Text("Mi Alacena 📦"),
         backgroundColor: AppColors.background,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications_active, color: Colors.orange),
+            tooltip: "Probar Notificaciones (Vencen <= 15 días)",
+            onPressed: () async {
+              // Obtener lista actual del provider
+              final productsAsync = ref.read(pantryListProvider);
+              
+              if (productsAsync.hasValue) {
+                final products = productsAsync.value!;
+                final count = await NotificationService().checkProductsInstant(products);
+                
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Test finalizado. Alertas enviadas: $count"))
+                  );
+                }
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Espera a que carguen los productos..."))
+                );
+              }
+            },
+          ),
+        ],
       ),
       // Riverpod maneja los 3 estados: Cargando, Error y Datos Listos
       body: pantryAsync.when(

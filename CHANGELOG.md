@@ -5,6 +5,14 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [1.1.0] - 2026-01-15
+### Notificaciones y Sistema
+- **Notificaciones Push Locales**: Sistema inteligente de alertas de vencimiento.
+    - Avisos diarios: 3 días antes, 2 días antes, 1 día antes y el mismo día ("Vence HOY").
+    - Horario: Las alertas se disparan a las **6:00 AM**.
+- **Compatibilidad Android**: Activación de *Core Library Desugaring* para soporte moderno de zonas horarias.
+- **Herramientas de Desarrollo**: Botón "Test de Notificaciones" en la UI durante la fase de desarrollo.
+
 ## [1.0.5] - 2026-01-15
 ### Inteligencia Visual y UI
 - **Semáforo de Vencimiento**: Indicadores visuales en cada producto (Rojo=Vencido, Naranja=<=15 días, Verde=>15 días).

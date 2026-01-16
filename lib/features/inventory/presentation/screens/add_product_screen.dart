@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:intl/intl.dart';
 import 'package:kadu/core/theme/app_colors.dart';
+import 'package:kadu/core/services/notification_service.dart';
 import 'package:kadu/features/inventory/data/pantry_repository.dart';
 import 'package:kadu/features/inventory/domain/entities/product_entity.dart';
 
@@ -188,7 +189,18 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
       );
 
       await ref.read(pantryRepositoryProvider).addProduct(newProduct);
-      
+
+      // --- AGENDAR NOTIFICACIONES ---
+      try {
+        await NotificationService().scheduleExpiryNotifications(
+          newProduct.id, 
+          newProduct.name, 
+          newProduct.expirationDate
+        );
+      } catch (e) {
+        debugPrint("Error agendando notificaciones: $e");
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("¡Producto Guardado!")));
         Navigator.popUntil(context, (route) => route.isFirst);
