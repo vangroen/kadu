@@ -195,7 +195,8 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
         await NotificationService().scheduleExpiryNotifications(
           newProduct.id, 
           newProduct.name, 
-          newProduct.expirationDate
+          newProduct.expirationDate,
+          base64Image: newProduct.imageUrl
         );
       } catch (e) {
         debugPrint("Error agendando notificaciones: $e");
@@ -425,6 +426,18 @@ class DateDetector {
           int y = int.parse(matchNum.group(3)!);
           final date = _validateAndBuildDate(d, m, y);
           if (date != null) return date;
+        } catch (_) {}
+      }
+
+      // Intentar Mes/Año (MM/YYYY) -> Asumir día 1
+      final mmYyyyRegex = RegExp(r'\b(\d{1,2})[\/\.\-\s]+(\d{4})\b');
+      final matchMmYyyy = mmYyyyRegex.firstMatch(numericLine);
+      if (matchMmYyyy != null) {
+        try {
+           int m = int.parse(matchMmYyyy.group(1)!);
+           int y = int.parse(matchMmYyyy.group(2)!);
+           final date = _validateAndBuildDate(1, m, y); // Día 1 por defecto
+           if (date != null) return date;
         } catch (_) {}
       }
 

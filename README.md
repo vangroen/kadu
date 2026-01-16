@@ -11,7 +11,10 @@ Nuestra Misión: Empoderar a los hogares para gestionar su consumo de alimentos 
 *   **Notificaciones Locales**: Alertas automáticas a las 6:00 AM para productos próximos a vencer (Cuenta regresiva de 3 días).
 *   **Auto-Sort**: La lista siempre muestra primero lo que está por vencer.
 Nuestra Visión: Convertirnos en el estándar de gestión de inventario doméstico en Latinoamérica, integrando Inteligencia Artificial para hacer que el proceso de "hacer la lista de compras" y "cocinar con lo que tienes" sea automático y sin fricción.
+Nuestra Visión: Convertirnos en el estándar de gestión de inventario doméstico en Latinoamérica, integrando Inteligencia Artificial para hacer que el proceso de "hacer la lista de compras" y "cocinar con lo que tienes" sea automático y sin fricción.
 
+**[NUEVO v1.2] Notificaciones "Big Picture":**
+Ahora las alertas de vencimiento incluyen la **foto real del producto** expandible. ¡Ya no tienes que leer, solo mirar y actuar!
 🚀 ¿Qué hace Kadu? (Funcionalidades Clave)
 
 Kadu no es solo una lista de tareas. Es un escáner inteligente que entiende tus productos.
@@ -42,13 +45,14 @@ Sincronización en tiempo real: Lo que escaneas en tu celular aparece en el de t
 
 🚀 **Ultrarrápido**: Escaneo de códigos de barras y fotos instantáneas gracias a la cámara integrada optimizada.
 🥫 **Gestión de Alacena:** Agrega productos manualmente o escanéalos. Guarda nombre, cantidad, fotos expiración y categoría.
-🧠 **OCR Inteligente:** Detecta automáticamente fechas de vencimiento complejas (Ej: "26 ABR 25").
+🧠 **OCR Inteligente:** Detecta automáticamente fechas de vencimiento complejas (Ej: "26 ABR 25" o "MM/YYYY").
 🚦 **Semáforo Visual:** Colores intuitivos (Verde, Naranja, Rojo) para indicarte qué productos consumir primero.
 📉 **Orden Automático:** Tu alacena se ordena sola por fecha de vencimiento. Lo más urgente siempre arriba.
 
-🔔 Alertas de Caducidad (Próximamente):
+🔔 Alertas de Caducidad Visuales:
 
-Notificaciones automáticas: "Tu leche vence mañana. ¡Úsala hoy!".
+Notificaciones con semáforo LED y Foto Grande (Big Picture) del producto.
+"Tu leche vence mañana". *[Foto de tu leche]*
 
 👤 Gestión de Usuarios:
 
@@ -137,7 +141,10 @@ flutter run
 [x] Guardado eficiente de imágenes (Base64 + Compresión).
 [x] Vista previa de imágenes con Zoom.
 
-[ ] Notificaciones Push: Avisar al usuario antes de que algo venza.
+[x] Notificaciones Push: Avisar al usuario antes de que algo venza (Estilo Kadu + Big Picture).
+[x] UX: Cámara modal y fix de pantallas negras.
+
+[ ] Lista de Compras: Integra lo que se acaba con lo que debes comprar.
 
 [ ] Modo Offline Robusto: Que la app funcione perfectamente en el sótano del supermercado y sincronice al volver.
 

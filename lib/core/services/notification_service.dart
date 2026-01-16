@@ -2,6 +2,8 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart' as
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'dart:typed_data' as java_typed;
 
 class NotificationService {
   // Singleton
@@ -44,9 +46,20 @@ class NotificationService {
   // Agendar Alertas de Vencimiento
   // ID Base: hashCode del productId. 
   // Sub-IDs: base + 1 (3 días), base + 2 (2 días), base + 3 (1 día), base + 4 (Hoy).
-  Future<void> scheduleExpiryNotifications(String productId, String productName, DateTime expirationDate) async {
+  Future<void> scheduleExpiryNotifications(String productId, String productName, DateTime expirationDate, {String? base64Image}) async {
     final int baseId = productId.hashCode;
     final now = DateTime.now();
+
+    // Decodificar imagen para BigPicture (fuera del loop para eficiencia)
+    fln.ByteArrayAndroidBitmap? bigPicture;
+    if (base64Image != null && base64Image.isNotEmpty) {
+      try {
+        final List<int> bytes = base64Decode(base64Image);
+        bigPicture = fln.ByteArrayAndroidBitmap(java_typed.Uint8List.fromList(bytes));
+      } catch (e) {
+        debugPrint("Error decodificando imagen para notificación: $e");
+      }
+    }
 
     // Notificaciones: 3 días antes, 2 días antes, 1 día antes, y el Día 0.
     final List<int> daysOffsets = [3, 2, 1, 0];
@@ -54,7 +67,6 @@ class NotificationService {
     for (int offset in daysOffsets) {
       final scheduledDate = expirationDate.subtract(Duration(days: offset));
       
-      // Configurar hora: 9:00 AM del día correspondiente
       // Configurar hora: 6:00 AM del día correspondiente
       final notificationTime = DateTime(
         scheduledDate.year,
@@ -85,11 +97,24 @@ class NotificationService {
         title: title,
         body: body,
         scheduledDate: notificationTime,
+        bigPicture: bigPicture,
       );
     }
   }
 
-  Future<void> _scheduleOne({required int id, required String title, required String body, required DateTime scheduledDate}) async {
+  Future<void> _scheduleOne({required int id, required String title, required String body, required DateTime scheduledDate, fln.ByteArrayAndroidBitmap? bigPicture}) async {
+    
+    // Estilo: BigPicture (si hay foto) o BigText (default)
+    final fln.StyleInformation styleInfo = bigPicture != null 
+        ? fln.BigPictureStyleInformation(
+            bigPicture,
+            contentTitle: title,
+            summaryText: body,
+            htmlFormatContentTitle: true,
+            htmlFormatSummaryText: true,
+          )
+        : fln.BigTextStyleInformation(body);
+
     await _notificationsPlugin.zonedSchedule(
       id,
       title,
@@ -102,7 +127,13 @@ class NotificationService {
           channelDescription: 'Notificaciones para productos próximos a vencer',
           importance: fln.Importance.high,
           priority: fln.Priority.high,
-          styleInformation: fln.BigTextStyleInformation(body), // Texto expandible
+          styleInformation: styleInfo,
+          // PERSONALIZACIÓN VISUAL
+          color: const Color(0xFF27E374),
+          ledColor: const Color(0xFF27E374),
+          ledOnMs: 1000, 
+          ledOffMs: 500,
+          enableLights: true,
         ),
         iOS: fln.DarwinNotificationDetails(),
       ),
@@ -156,6 +187,32 @@ class NotificationService {
           body = "Recuerda consumir $productName antes de que sea tarde.";
         }
 
+        // Decodificar imagen para BigPicture
+        fln.ByteArrayAndroidBitmap? bigPicture;
+        // Asumimos que 'product' es un Entity o Map con 'imageUrl'
+        String? base64Img;
+        try {
+          // Si es Entity
+          base64Img = (product.imageUrl != null && product.imageUrl!.isNotEmpty) ? product.imageUrl : null;
+        } catch (_) {}
+        
+        if (base64Img != null) {
+            try {
+              final List<int> bytes = base64Decode(base64Img);
+              bigPicture = fln.ByteArrayAndroidBitmap(java_typed.Uint8List.fromList(bytes));
+            } catch (e) { print(e); }
+        }
+
+        final fln.StyleInformation styleInfo = bigPicture != null 
+          ? fln.BigPictureStyleInformation(
+              bigPicture,
+              contentTitle: title,
+              summaryText: body,
+              htmlFormatContentTitle: true,
+              htmlFormatSummaryText: true,
+            )
+          : fln.BigTextStyleInformation(body);
+
         await _notificationsPlugin.show(
           product.id.hashCode, // ID único basado en producto
           title, 
@@ -166,7 +223,12 @@ class NotificationService {
               'Canal de Prueba',
               importance: fln.Importance.max,
               priority: fln.Priority.high,
-              styleInformation: fln.BigTextStyleInformation(body), // Texto expandible
+              styleInformation: styleInfo,
+              color: const Color(0xFF27E374),
+              ledColor: const Color(0xFF27E374),
+              ledOnMs: 1000, 
+              ledOffMs: 500,
+              enableLights: true,
             ),
           )
         );
