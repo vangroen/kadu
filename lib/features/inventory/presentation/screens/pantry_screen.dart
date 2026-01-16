@@ -183,20 +183,24 @@ class PantryScreen extends ConsumerWidget {
                       ),
                     ),
                     child: ListTile(
+                      onTap: () {
+                         if (product.imageUrl != null && product.imageUrl!.isNotEmpty) {
+                            _showImagePreview(context, product.imageUrl!);
+                         } else {
+                            // Feedback si no hay foto
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text("Este producto no tiene foto 📷"), duration: Duration(seconds: 1)),
+                            );
+                         }
+                      },
                       leading: Container(
                         padding: product.imageUrl == null ? const EdgeInsets.all(10) : EdgeInsets.zero,
                         decoration: BoxDecoration(
                           color: AppColors.primary.withOpacity(0.1),
                           shape: BoxShape.circle,
                         ),
-                        child: GestureDetector(
-                          onTap: () {
-                            if (product.imageUrl != null && product.imageUrl!.isNotEmpty) {
-                              _showImagePreview(context, product.imageUrl!);
-                            }
-                          },
-                          child: _buildProductImage(product.imageUrl),
-                        ),
+                        // Ya no necesitamos GestureDetector aqui porque el ListTile lo maneja
+                        child: _buildProductImage(product.imageUrl),
                       ),
                       title: Text(
                         product.name,
@@ -298,11 +302,19 @@ class PantryScreen extends ConsumerWidget {
             ),
             // Botón de cerrar
             Positioned(
-              top: 40,
+              top: 20,
               right: 20,
-              child: IconButton(
-                icon: const Icon(Icons.close, color: Colors.white, size: 30),
-                onPressed: () => Navigator.pop(ctx),
+              child: SafeArea(
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.black54, // Fondo oscuro para contraste
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white, size: 30),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ),
               ),
             ),
           ],
